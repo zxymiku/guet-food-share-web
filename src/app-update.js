@@ -22,6 +22,7 @@ async function latest(env){
 }
 export async function appUpdate(req,env){
  const path=new URL(req.url).pathname,info=await latest(env);
+ if(path==='/download/android'&&info)return Response.redirect(new URL(`/api/app-download/${info.assetId}`,req.url).toString(),302);
  if(path==='/api/app-update')return Response.json(info?{available:true,...info,downloadPath:`/api/app-download/${info.assetId}`}:{available:false},{headers:{'Cache-Control':'public, max-age=300'}});
  if(!info||path!==`/api/app-download/${info.assetId}`)return Response.json({error:'安装包已更新，请重新检查版本'},{status:404});
  const r=await publicAsset(`https://github.com/${env.GITHUB_REPO}/releases/download/android-v${info.versionName}/${info.assetName}`);if(!r.ok)throw new Error('Cannot download Android APK');

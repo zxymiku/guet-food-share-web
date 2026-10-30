@@ -50,7 +50,7 @@ async function routes(req, env) {
   }
   const feedbackImage=/^\/api\/feedback\/([0-9a-f-]{36})\/screenshots\/([0-9a-f-]{36})$/.exec(path);
   if(feedbackImage&&method==='GET')return feedbackScreenshot(req,env,feedbackImage[1],feedbackImage[2]);
-  if((path==='/api/app-update'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);
+  if((path==='/api/app-update'||path==='/download/android'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);
   if(path==='/api/location'&&method==='POST'){
     if(!user)return fail('请先登录后自动填写位置',401);
     const {lng,lat}=await readJson(req);
