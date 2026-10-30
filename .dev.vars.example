@@ -1,0 +1,13 @@
+DEV_MODE=true
+APP_ORIGIN=http://localhost:8787
+DATA_ENCRYPTION_KEY=replace-with-a-random-secret-of-at-least-32-characters
+AMAP_WEB_KEY=
+AMAP_SECURITY_JS_CODE=
+AMAP_REST_KEY=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_REPO=zxymiku/guet-food-share
+MEDIA_REPO=zxymiku/guet-food-share-media
+GITHUB_TOKEN=
+REVIEWER_GITHUB_IDS=
+PIPELINE_SECRET=replace-with-a-different-32-character-secret

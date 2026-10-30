@@ -1,0 +1,26 @@
+name: 桂电美食分享 · Workers 部署（可选 Actions 方式）
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: workers-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    # 默认使用 Workers Builds 绑定；选择 Actions 方式时才启用，避免重复部署。
+    if: vars.DEPLOY_WITH_ACTIONS == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:remote && npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

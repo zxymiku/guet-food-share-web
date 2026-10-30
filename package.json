@@ -1,0 +1,17 @@
+{
+  "name": "guet-food-share",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "db:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.mjs",
+    "test:integration": "node test/smoke.mjs",
+    "check": "node --check src/worker.js && node --check public/app.js && wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.0"
+  }
+}
