@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);
-const state={places:[],category:'全部',user:null,map:null,markers:[],picking:false,selection:null,config:{}};
+const state={places:[],category:'全部',user:null,map:null,markers:[],picking:false,selection:null,config:{},authType:null};
 const icons={'中餐':'🥢','小吃':'🥟','面馆':'🍜','咖啡':'☕','甜品':'🍰','其他':'🍽️'};
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').hidden=true,5500);}
 async function api(path,options={}){const r=await fetch(path,options);const data=await r.json();if(!r.ok)throw new Error(data.error||'请求失败');return data;}
@@ -18,7 +18,10 @@ $('#share').onclick=share;$('#empty-share').onclick=share;$('#explore').onclick=
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());
 $('#search').oninput=render;
 ['全部',...Object.keys(icons)].forEach(c=>{const b=node('button',c,c==='全部'?'active':'');b.onclick=()=>{state.category=c;$('#filters').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));render();};$('#filters').append(b);});
-$('#login').onclick=async()=>{try{if(state.user){await post('/api/logout',{});location.reload();}else if(state.config.dev){await post('/api/dev-session',{});location.reload();}else if(state.config.loginReady){location.href='/auth/github';}else toast('GitHub 登录尚未配置，请按部署说明设置 OAuth App');}catch(e){toast(e.message);}};
+$('#login').onclick=async()=>{try{if(state.user){await post('/api/logout',{});location.reload();}else{$('#password-error').textContent=state.config.passwordReady?'':'共享密码尚未配置，请联系管理员。';$('#login-dialog').showModal();}}catch(e){toast(e.message);}};
+$('#github-login').onclick=async()=>{try{if(state.config.dev){await post('/api/dev-session',{});location.reload();}else if(state.config.loginReady){location.href='/auth/github';}else $('#password-error').textContent='GitHub 登录尚未配置，可改用共享密码。';}catch(e){$('#password-error').textContent=e.message;}};
+$('#password-form').onsubmit=async event=>{event.preventDefault();const button=$('#password-submit');button.disabled=true;$('#password-error').textContent='';try{await post('/api/auth/password',{password:$('#shared-password').value,client:'web'});$('#shared-password').value='';location.reload();}catch(e){$('#password-error').textContent=e.message;}finally{button.disabled=false;}};
+$('#login-dialog').addEventListener('close',()=>$('#shared-password').value='');
 $('#pick').onclick=()=>{if(!state.map){toast('配置高德 Key 后可在地图选点，也可以输入高德坐标');return;}state.picking=true;$('#submit-dialog').close();toast('请点击地图上的门店位置');};
 async function fillLocation(point){
  const form=$('#submit-form');form.elements.lng.value=point.lng.toFixed(6);form.elements.lat.value=point.lat.toFixed(6);
@@ -45,7 +48,7 @@ async function loadMap(){if(!state.config.amapKey){$('#map-status').textContent=
  await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=`https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(state.config.amapKey)}&callback=__mapReady`;const timer=setTimeout(()=>reject(new Error('地图连接超时，请检查高德配置和网络')),18000);window.__mapReady=()=>{clearTimeout(timer);resolve();};script.onerror=()=>{clearTimeout(timer);reject(new Error('高德地图加载失败'));};document.head.append(script);});
  state.map=new AMap.Map('map',{zoom:13,center:state.places.length?[state.places[0].location.lng,state.places[0].location.lat]:[110.299121,25.274215],mapStyle:'amap://styles/normal',viewMode:'2D'});
  $('#map-empty').hidden=true;$('#map-status').textContent='高德地图';state.map.on('click',e=>{if(!state.picking)return;state.picking=false;const {lng,lat}=e.lnglat;$('#submit-dialog').showModal();fillLocation({lng,lat});});render();}
-async function init(){try{const [config,me,places]=await Promise.all([api('/api/config'),api('/api/me'),api('/api/places')]);state.config=config;state.user=me.user;state.places=places.places;$('#login').textContent=state.user?'退出登录':config.dev?'本地测试登录 ↗':'GitHub 登录 ↗';render();await loadMap();}catch(e){$('#map-status').textContent='连接异常';toast(e.message);render();}}
+async function init(){try{const [config,me,places]=await Promise.all([api('/api/config'),api('/api/me'),api('/api/places')]);state.config=config;state.user=me.user;state.authType=me.authType;state.places=places.places;$('#login').textContent=state.user?(me.authType==='credential'?'退出（密码）':'退出登录'):'登录 ↗';render();await loadMap();}catch(e){$('#map-status').textContent='连接异常';toast(e.message);render();}}
 init();
 
 export {api,post,stripMetadata,toast,state,node};

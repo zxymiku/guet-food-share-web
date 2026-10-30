@@ -1,7 +1,8 @@
 import {encryptionKey,seal,unseal} from './crypto.js';
 import {InputError} from './validation.js';
 const CHUNK=256*1024;
-const githubHeaders=env=>({...env.GITHUB_TOKEN?{Authorization:`Bearer ${env.GITHUB_TOKEN}`}:{},Accept:'application/vnd.github+json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'});
+const mediaToken=env=>env.MEDIA_GITHUB_TOKEN||env.GITHUB_TOKEN;
+const githubHeaders=env=>({...mediaToken(env)?{Authorization:`Bearer ${mediaToken(env)}`}:{},Accept:'application/vnd.github+json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'});
 async function gh(env,path,method='GET',data) {
  const r=await fetch(`https://api.github.com/repos/${env.MEDIA_REPO}${path}`,{method,headers:githubHeaders(env),body:data?JSON.stringify(data):undefined});
  if(!r.ok)throw new Error(`Media GitHub request failed (${r.status})`);return r.json();
@@ -39,7 +40,7 @@ export async function encryptedStream(stream,key,id,size,mime) {
  }));
 }
 export async function uploadMedia(req,env,user) {
- if(!env.GITHUB_TOKEN||!/^[-\w.]+\/[-\w.]+$/.test(env.MEDIA_REPO||''))throw new InputError('请先配置 GitHub 媒体仓库');
+ if(!mediaToken(env)||!/^[-\w.]+\/[-\w.]+$/.test(env.MEDIA_REPO||''))throw new InputError('请先配置 GitHub 媒体仓库');
  const mime=req.headers.get('Content-Type')?.split(';')[0],video=mime?.startsWith('video/');
  if(!['image/jpeg','image/png','video/mp4','video/webm'].includes(mime))throw new InputError('支持 JPEG、PNG、MP4、WebM');
  const size=Number(req.headers.get('X-File-Size')||req.headers.get('Content-Length'));

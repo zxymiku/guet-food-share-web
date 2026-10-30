@@ -3,6 +3,8 @@ import {seal,unseal} from './crypto.js';
 import {uploadMedia,serveMedia} from './github-media.js';
 import {appUpdate} from './app-update.js';
 import {feedbackConfig,submitFeedback,feedbackScreenshot} from './feedback.js';
+import {identity,passwordReady,passwordLogin,credentialAllowed} from './password-auth.js';
+import {saveGitHubGrant,GitHubAuthorizationError} from './github-user.js';
 
 const enc = new TextEncoder();
 const json = (data, status = 200, headers = {}) => Response.json(data, {status, headers: {'Cache-Control': 'no-store', ...headers}});
@@ -13,11 +15,6 @@ const dev = (req, env) => env.DEV_MODE === 'true' && local(req);
 const cookie = (req, key) => (req.headers.get('Cookie') || '').split(';').map(s=>s.trim()).find(s=>s.startsWith(key+'='))?.slice(key.length+1);
 const cookieHeader = (req, name, value, maxAge) => `${name}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${new URL(req.url).protocol === 'https:' ? '; Secure' : ''}`;
 async function token(user,env){return seal({user,exp:Date.now()+7*86400000},env,'session');}
-async function session(req,env){
- const raw=req.headers.get('Authorization')?.replace(/^Bearer /,'')||cookie(req,'session');
- if(!raw||!raw.startsWith('enc1.'))return null;
- try{const value=await unseal(raw,env,'session');return value.exp>Date.now()?value.user:null;}catch{return null;}
-}
 async function body(req, max = 20000) {
   if (Number(req.headers.get('Content-Length')) > max) throw new InputError('请求内容过大');
   const reader = req.body?.getReader(); if (!reader) throw new InputError('请求为空');
@@ -27,24 +24,27 @@ async function body(req, max = 20000) {
 }
 async function readJson(req) { try {return JSON.parse(new TextDecoder().decode(await body(req)));} catch(e) {throw new InputError(e instanceof InputError ? e.message : 'JSON 格式错误');} }
 async function github(env, path, payload) {
-  const response = await fetch(`https://api.github.com${path}`, {method:'POST', headers:{Authorization:`Bearer ${env.GITHUB_TOKEN}`, Accept:'application/vnd.github+json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'},body:JSON.stringify(payload)});
+  const response = await fetch(`https://api.github.com${path}`, {method:'POST', headers:{Authorization:`Bearer ${env.DISPATCH_GITHUB_TOKEN||env.GITHUB_TOKEN}`, Accept:'application/vnd.github+json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'},body:JSON.stringify(payload)});
   if(!response.ok) throw new Error(`GitHub ${response.status}`);
 }
-function repoReady(env){return /^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_REPO || '') && !!env.GITHUB_TOKEN;}
-const reviewer = (user,env) => !!user && (env.REVIEWER_GITHUB_IDS||'').split(',').map(x=>x.trim()).includes(user);
+function repoReady(env){return /^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_REPO || '') && !!(env.DISPATCH_GITHUB_TOKEN||env.GITHUB_TOKEN);}
+const reviewer = (user,env) => !!user && !user.startsWith('credential:') && (env.REVIEWER_GITHUB_IDS||'').split(',').map(x=>x.trim()).includes(user);
 async function dispatch(env,id){await github(env,`/repos/${env.GITHUB_REPO}/dispatches`,{event_type:'food-submitted',client_payload:{id}});await env.DB.prepare("UPDATE submissions SET status='queued' WHERE id=? AND status='pending'").bind(id).run();}
 async function routes(req, env) {
   const url = new URL(req.url), path = url.pathname, method = req.method;
   const allowedOrigins=[env.APP_ORIGIN,...(env.ALLOWED_ORIGINS||'').split(',')].filter(Boolean);
   if (allowedOrigins.length && !dev(req, env) && !allowedOrigins.includes(url.origin)) return fail('访问域名未配置',403);
   if (!['GET','HEAD'].includes(method) && req.headers.get('Origin') && req.headers.get('Origin') !== url.origin) return fail('来源不受信任',403);
-  if (path === '/api/config') return json({amapKey:env.AMAP_WEB_KEY || '',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,feedback:feedbackConfig(env)});
+  const auth=await identity(req,env),user=auth?.user||null;
+  if(auth?.kind==='credential'&&path.startsWith('/api/')&&!credentialAllowed(method,path))return fail('密码凭证允许查看、上传美食和提交反馈，不允许删除、审核或管理',403);
+  if(path==='/api/auth/password'&&method==='POST')return passwordLogin(req,env,await readJson(req));
+  if (path === '/api/config') return json({amapKey:env.AMAP_WEB_KEY || '',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,passwordReady:passwordReady(env),feedback:feedbackConfig(env)});
   if(path==='/api/feedback'&&method==='POST'){
-    const user=await session(req,env);if(!user)return fail('请先登录后自动反馈；也可选择手动反馈',401);
+    if(!user)return fail('请先登录后自动反馈；也可选择手动反馈',401);
     return submitFeedback(req,env,user,await readJson(req));
   }
   if(path==='/api/feedback/screenshots'&&method==='POST'){
-    const user=await session(req,env);if(!user)return fail('请先登录后上传反馈截图',401);
+    if(!user)return fail('请先登录后上传反馈截图',401);
     if(!['image/jpeg','image/png'].includes(req.headers.get('Content-Type')?.split(';')[0]))return fail('反馈截图仅支持 JPEG / PNG');
     return json(await uploadMedia(req,env,user),201);
   }
@@ -52,7 +52,7 @@ async function routes(req, env) {
   if(feedbackImage&&method==='GET')return feedbackScreenshot(req,env,feedbackImage[1],feedbackImage[2]);
   if((path==='/api/app-update'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);
   if(path==='/api/location'&&method==='POST'){
-    if(!await session(req,env))return fail('请先登录后自动填写位置',401);
+    if(!user)return fail('请先登录后自动填写位置',401);
     const {lng,lat}=await readJson(req);
     if(typeof lng!=='number'||typeof lat!=='number'||!Number.isFinite(lng)||!Number.isFinite(lat)||lng<73||lng>136||lat<3||lat>54)return fail('坐标无效');
     if(!env.AMAP_REST_KEY)return fail('请配置高德 Web 服务 Key 后使用地址自动填写',503);
@@ -73,7 +73,7 @@ async function routes(req, env) {
     const state=crypto.randomUUID();
     await env.DB.prepare('DELETE FROM oauth_states WHERE expires_at < ?').bind(Date.now()).run();
     await env.DB.prepare('INSERT INTO oauth_states VALUES (?,?,?)').bind(state,Date.now()+600000,challenge).run();
-    const target=new URL('https://github.com/login/oauth/authorize'); target.search=new URLSearchParams({client_id:env.GITHUB_CLIENT_ID,redirect_uri:url.origin+'/auth/callback',scope:'read:user',state}).toString();
+    const target=new URL('https://github.com/login/oauth/authorize'); target.search=new URLSearchParams({client_id:env.GITHUB_CLIENT_ID,redirect_uri:url.origin+'/auth/callback',state}).toString();
     return new Response(null,{status:302,headers:{Location:target.toString(),'Set-Cookie':cookieHeader(req,'oauth_state',state,600)}});
   }
   if(path === '/auth/callback') {
@@ -81,10 +81,13 @@ async function routes(req, env) {
     if(!state || cookie(req,'oauth_state')!==state) return fail('登录校验失败，请重新登录',403);
     const row=await env.DB.prepare('DELETE FROM oauth_states WHERE state=? AND expires_at>? RETURNING *').bind(state,Date.now()).first();
     if(!row || !url.searchParams.get('code')) return fail('登录已过期或取消',403);
-    const exchange=await fetch('https://github.com/login/oauth/access_token',{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({client_id:env.GITHUB_CLIENT_ID,client_secret:env.GITHUB_CLIENT_SECRET,code:url.searchParams.get('code'),redirect_uri:url.origin+'/auth/callback'})});
+    const platform=row.mobile_challenge?'android':'web',repositoryId=platform==='web'?env.GITHUB_WEB_REPO_ID:env.GITHUB_ANDROID_REPO_ID;
+    if(!/^\d+$/.test(repositoryId||''))return fail('请先配置对应平台的 GitHub 仓库数字 ID',503);
+    const exchange=await fetch('https://github.com/login/oauth/access_token',{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({client_id:env.GITHUB_CLIENT_ID,client_secret:env.GITHUB_CLIENT_SECRET,code:url.searchParams.get('code'),redirect_uri:url.origin+'/auth/callback',repository_id:repositoryId})});
     const access=await exchange.json(); if(!access.access_token) return fail('GitHub 登录失败',502);
     const profile=await fetch('https://api.github.com/user',{headers:{Authorization:`Bearer ${access.access_token}`,'User-Agent':'guet-food-share'}}); if(!profile.ok) return fail('无法获取登录信息',502);
     const p=await profile.json(), user=String(p.id);
+    await saveGitHubGrant(env,user,access,platform);
     if(row.mobile_challenge) {
       const code=crypto.randomUUID();
       await env.DB.prepare('DELETE FROM mobile_codes WHERE expires_at < ?').bind(Date.now()).run();
@@ -105,9 +108,9 @@ async function routes(req, env) {
     return json({ok:true},200,{'Set-Cookie':cookieHeader(req,'session',await token('local-developer',env),604800)});
   }
   if(path === '/api/logout' && method==='POST') return json({ok:true},200,{'Set-Cookie':cookieHeader(req,'session','',0)});
-  if(path === '/api/me') {const user=await session(req,env);return json({user,reviewer:reviewer(user,env)});}
+  if(path === '/api/me') {return json({user,reviewer:reviewer(user,env),authType:auth?.kind||null,permissions:user?['food:read','food:submit','media:upload','feedback:submit']:[]});}
   if(/^\/api\/review\/[0-9a-f-]{36}$/.test(path) && method==='GET') {
-    if(!reviewer(await session(req,env),env))return fail('请以配置的审核员 GitHub 账号登录',403);
+    if(!reviewer(user,env))return fail('请以配置的审核员 GitHub 账号登录',403);
     const row=await env.DB.prepare('SELECT id,payload,status FROM submissions WHERE id=?').bind(path.split('/').at(-1)).first();
     return row?json({id:row.id,status:row.status,...await unseal(row.payload,env)}):fail('Not found',404);
   }
@@ -116,7 +119,8 @@ async function routes(req, env) {
     return json({places:rows.results.map(r=>({ ...JSON.parse(r.payload),id:r.id}))});
   }
   if(path.startsWith('/api/internal/')) {
-    if(!env.PIPELINE_SECRET || req.headers.get('Authorization')!==`Bearer ${env.PIPELINE_SECRET}`) return fail('Unauthorized',401);
+    const secret=path.startsWith('/api/internal/submissions/')&&method==='GET'?(env.INTAKE_SECRET||env.PIPELINE_SECRET):path.startsWith('/api/internal/publish/')&&method==='POST'?(env.PUBLISH_SECRET||env.PIPELINE_SECRET):null;
+    if(!secret || req.headers.get('Authorization')!==`Bearer ${secret}`) return fail('Unauthorized',401);
     const id=path.split('/').at(-1); if(!/^[0-9a-f-]{36}$/.test(id)) return fail('ID 无效');
     if(path.startsWith('/api/internal/submissions/') && method==='GET') {
       const row=await env.DB.prepare('SELECT id,payload FROM submissions WHERE id=?').bind(id).first();
@@ -135,17 +139,17 @@ async function routes(req, env) {
   if((path.startsWith('/api/photos/')||path.startsWith('/api/media/'))&&method==='GET') {
     const id=path.split('/').at(-1);if(!/^[0-9a-f-]{36}$/.test(id))return fail('Not found',404);
     const row=await env.DB.prepare('SELECT * FROM media WHERE id=?').bind(id).first();if(!row)return fail('Not found',404);
-    const user=await session(req,env);
+    
     const visible=await env.DB.prepare("SELECT 1 FROM places,json_each(places.payload,?) WHERE json_each.value=? LIMIT 1").bind(row.kind==='video'?'$.videos':'$.photos',path).first();
     if(!visible&&row.user_id!==user&&!reviewer(user,env))return fail('Not found',404);
     return serveMedia(req,env,row);
   }
   if((path==='/api/photos'||path==='/api/media')&&method==='POST'){
-    const user=await session(req,env);if(!user)return fail('请先登录',401);
+    if(!user)return fail('请先登录',401);
     return json(await uploadMedia(req,env,user),201);
   }
   if(path === '/api/submissions') {
-    const user=await session(req,env); if(!user) return fail('请先登录',401);
+     if(!user) return fail('请先登录',401);
     if(method==='GET') {const rows=await env.DB.prepare('SELECT id,status,created_at,payload FROM submissions WHERE user_id=? ORDER BY created_at DESC LIMIT 100').bind(user).all();return json({submissions:await Promise.all(rows.results.map(async r=>({id:r.id,status:r.status,createdAt:r.created_at,name:(await unseal(r.payload,env)).name})))});}
     if(method==='POST') {
       const data=normalize(await readJson(req));
@@ -157,7 +161,7 @@ async function routes(req, env) {
     }
   }
   if(/^\/api\/submissions\/[0-9a-f-]{36}\/retry$/.test(path)&&method==='POST') {
-    const user=await session(req,env);if(!user)return fail('请先登录',401);
+    if(!user)return fail('请先登录',401);
     const id=path.split('/')[3],row=await env.DB.prepare('SELECT status FROM submissions WHERE id=? AND user_id=?').bind(id,user).first();if(!row)return fail('Not found',404);
     if(row.status!=='pending')return json({status:row.status});if(!repoReady(env))return fail('GitHub 尚未配置',503);
     await dispatch(env,id);return json({status:'queued'});
@@ -168,7 +172,7 @@ async function routes(req, env) {
 }
 export default {async fetch(req,env) {
   let response;
-  try { response=await routes(req,env); } catch(e){console.error(e.message);response=fail(e instanceof InputError?e.message:'服务暂时不可用，请稍后重试',e instanceof InputError?400:503);}
+  try { response=await routes(req,env); } catch(e){console.error(e.message);response=fail(e instanceof InputError||e instanceof GitHubAuthorizationError?e.message:'服务暂时不可用，请稍后重试',e instanceof InputError?400:e instanceof GitHubAuthorizationError?e.status:503);}
   const headers=new Headers(response.headers);headers.set('X-Content-Type-Options','nosniff');headers.set('Referrer-Policy','strict-origin-when-cross-origin');headers.set('Permissions-Policy','geolocation=(self), camera=()');headers.set('X-Frame-Options','DENY');
   return new Response(response.body,{status:response.status,headers});
 }};

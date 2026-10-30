@@ -4,7 +4,7 @@ let requestId=crypto.randomUUID(),uploaded=new Map(),previews=[];
 function changed(){requestId=crypto.randomUUID();$('#feedback-result').replaceChildren();}
 $('#feedback-open').onclick=async()=>{
  dialog.showModal();$('#feedback-error').textContent='';
- try{const config=state.config.feedback||((await api('/api/config')).feedback);$('#feedback-manual').href=config.webIssuesUrl;$('#feedback-note').textContent=config.automaticReady?'自动反馈需要登录，提交后直接发布到 Web 仓库的 GitHub Issue。':'自动反馈服务待配置；你仍可填写表单，或使用手动反馈。';}catch(e){$('#feedback-note').textContent=e.message;}
+ try{const config=state.config.feedback||((await api('/api/config')).feedback);$('#feedback-manual').href=config.webIssuesUrl;$('#feedback-note').textContent=config.automaticReady?(state.authType==='credential'?'密码登录：由管理员 GitHub 账号代发到 Web 仓库。':'GitHub 登录：使用你自己的账号发布到 Web 仓库。'):'自动反馈服务待配置；你仍可填写表单，或使用手动反馈。';}catch(e){$('#feedback-note').textContent=e.message;}
 };
 $('#feedback-auto').onclick=()=>{$('#feedback-auto-panel').hidden=false;$('#feedback-title').focus();};
 $('#feedback-title').oninput=changed;$('#feedback-description').oninput=changed;
@@ -16,7 +16,7 @@ $('#feedback-images').onchange=()=>{
 };
 form.onsubmit=async event=>{
  event.preventDefault();const submit=$('#feedback-submit');$('#feedback-error').textContent='';$('#feedback-result').replaceChildren();
- if(!state.user){$('#feedback-error').textContent='请先在首页登录 GitHub 后自动反馈，或选择手动反馈。';return;}
+ if(!state.user){$('#feedback-error').textContent='请先使用共享密码或 GitHub 登录后自动反馈。';return;}
  form.querySelectorAll('input,textarea,button').forEach(el=>el.disabled=true);
  try{
   const screenshots=[];

@@ -14,3 +14,8 @@ PIPELINE_SECRET=replace-with-a-different-32-character-secret
 
 FEEDBACK_GITHUB_TOKEN=
 FEEDBACK_WEB_REPO=zxymiku/guet-food-share-web
+
+# 运行 npm run password:setup -- --local 生成，不填写明文密码
+PASSWORD_CREDENTIAL=
+DISPATCH_GITHUB_TOKEN=
+MEDIA_GITHUB_TOKEN=

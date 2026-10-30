@@ -1,13 +1,14 @@
 import {seal} from './crypto.js';
 import {InputError} from './validation.js';
 import {serveMedia} from './github-media.js';
+import {gitHubUserToken} from './github-user.js';
 const validId=id=>typeof id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
-const token=env=>env.FEEDBACK_GITHUB_TOKEN||env.GITHUB_TOKEN;
+const ownerToken=env=>env.FEEDBACK_GITHUB_TOKEN;
 const repos=env=>({web:env.FEEDBACK_WEB_REPO||'zxymiku/guet-food-share-web',android:env.GITHUB_REPO||'zxymiku/guet-food-share'});
-const headers=env=>({Authorization:`Bearer ${token(env)}`,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'});
+const headers=accessToken=>({Authorization:`Bearer ${accessToken}`,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'});
 const error=(message,status=400)=>Response.json({error:message},{status,headers:{'Cache-Control':'no-store'}});
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('');
-export function feedbackConfig(env){return {webIssuesUrl:`https://github.com/${repos(env).web}/issues/new`,androidIssuesUrl:`https://github.com/${repos(env).android}/issues/new`,automaticReady:!!token(env),screenshotsReady:!!env.GITHUB_TOKEN&&!!env.MEDIA_REPO};}
+export function feedbackConfig(env){return {webIssuesUrl:`https://github.com/${repos(env).web}/issues/new`,androidIssuesUrl:`https://github.com/${repos(env).android}/issues/new`,automaticReady:!!ownerToken(env)||!!env.GITHUB_CLIENT_ID,sharedPasswordReady:!!ownerToken(env),screenshotsReady:!!(env.MEDIA_GITHUB_TOKEN||env.GITHUB_TOKEN)&&!!env.MEDIA_REPO};}
 function normalized(input){
  if(!input||!validId(input.requestId)||!['web','android'].includes(input.platform))throw new InputError('反馈平台或请求编号无效');
  if(input.consent!==true)throw new InputError('请确认同意公开反馈文字和截图');
@@ -25,9 +26,13 @@ async function posted(env,id,issue){
  return Response.json({id,issueUrl:issue.html_url,number:issue.number},{status:201,headers:{'Cache-Control':'no-store'}});
 }
 export async function submitFeedback(req,env,user,input){
- if(!user)return error('请先登录 GitHub 后自动反馈；也可选择手动反馈',401);
+ if(!user)return error('请先使用共享密码或 GitHub 登录后自动反馈',401);
  const data=normalized(input),repo=repos(env)[data.platform];
- if(!/^[-\w.]+\/[-\w.]+$/.test(repo)||!token(env))return error('自动反馈尚未配置，请选择手动反馈或配置服务端 Issues 写权限',503);
+ if(!/^[-\w.]+\/[-\w.]+$/.test(repo))return error('反馈仓库未配置',503);
+ const shared=user.startsWith('credential:');
+ if(shared&&!ownerToken(env))return error('请管理员配置仅授权对应仓库 Issues 写权限的 FEEDBACK_GITHUB_TOKEN，用管理员账号代发密码用户反馈',503);
+ let actorToken;
+ const actor=async()=>actorToken??=(shared?ownerToken(env):await gitHubUserToken(env,user,data.platform));
  const hash=await digest(JSON.stringify(data));
  const existing=await env.DB.prepare('SELECT * FROM feedback WHERE id=?').bind(data.requestId).first();
  if(existing){
@@ -35,7 +40,7 @@ export async function submitFeedback(req,env,user,input){
   if(existing.status==='posted')return Response.json({id:existing.id,issueUrl:existing.issue_url,number:existing.issue_number});
   if(existing.status==='sending'){
    if(Date.now()-Date.parse(existing.created_at)<30000)return error('反馈正在提交，请稍后用同一表单重试确认结果',409);
-   const response=await fetch(`https://api.github.com/repos/${repo}/issues?state=all&sort=created&direction=desc&per_page=100`,{headers:headers(env),signal:AbortSignal.timeout(15000)});
+   const response=await fetch(`https://api.github.com/repos/${repo}/issues?state=all&sort=created&direction=desc&per_page=100`,{headers:headers(await actor()),signal:AbortSignal.timeout(15000)});
    if(response.ok){const issues=await response.json();const found=issues.find(i=>!i.pull_request&&i.body?.includes(`<!-- guet-feedback:${data.requestId} -->`)&&validIssue(i,repo));if(found)return posted(env,data.requestId,found);}
    return error(`反馈结果仍在确认，请勿重复提交新反馈。编号：${data.requestId}`,409);
   }
@@ -43,6 +48,7 @@ export async function submitFeedback(req,env,user,input){
  const count=await env.DB.prepare("SELECT count(*) AS n FROM feedback WHERE user_id=? AND status!='failed' AND created_at>strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 day')").bind(user).first();
  if(count.n>=5)return error('今日自动反馈已达 5 次，请稍后再试',429);
  for(const path of data.screenshots){if(!await env.DB.prepare("SELECT 1 FROM media WHERE id=? AND user_id=? AND kind='image'").bind(path.split('/').at(-1),user).first())return error('只能附加自己上传的图片截图',403);}
+ await actor();
  const payload=await seal(data,env,'feedback');
  const claimed=existing
   ?await env.DB.prepare("UPDATE feedback SET status='sending' WHERE id=? AND status='failed' RETURNING id").bind(data.requestId).first()
@@ -59,11 +65,11 @@ export async function submitFeedback(req,env,user,input){
  const runs=data.description.match(/`+/g)||[],fence='`'.repeat(Math.max(3,...runs.map(s=>s.length+1)));
  const body=`平台：${data.platform==='web'?'Web':'Android'}\n应用版本：${data.appVersion||'未提供'}\n\n${fence}text\n${data.description}\n${fence}\n\n${attachments.join('\n\n')}\n\n<!-- guet-feedback:${data.requestId} -->`;
  let response;
- try{response=await fetch(`https://api.github.com/repos/${repo}/issues`,{method:'POST',headers:headers(env),body:JSON.stringify({title:`[${data.platform==='web'?'Web':'Android'}反馈] ${data.title.replaceAll('@','＠')}`,body}),signal:AbortSignal.timeout(20000)});}
+ try{response=await fetch(`https://api.github.com/repos/${repo}/issues`,{method:'POST',headers:headers(await actor()),body:JSON.stringify({title:`[${data.platform==='web'?'Web':'Android'}反馈] ${data.title.replaceAll('@','＠')}`,body}),signal:AbortSignal.timeout(20000)});}
  catch{return error(`提交结果未确认，请保留当前表单稍后重试。编号：${data.requestId}`,409);}
  if(!response.ok){
   if(response.status<500)await env.DB.prepare("UPDATE feedback SET status='failed' WHERE id=?").bind(data.requestId).run();
-  return error([401,403,404].includes(response.status)?'GitHub 拒绝创建 Issue，请管理员检查 Token 的仓库 Issues 写权限；可改用手动反馈':'GitHub 暂时无法处理反馈，请保留表单稍后重试',503);
+  return error([401,403,404].includes(response.status)?(shared?'GitHub 拒绝创建 Issue，请管理员检查对应仓库的 Issues 写权限':'GitHub 授权不可用，请重新登录并授权 GitHub App 在对应仓库创建 Issue'):'GitHub 暂时无法处理反馈，请保留表单稍后重试',503);
  }
  let issue;try{issue=await response.json();}catch{return error('反馈结果未确认，请稍后用同一表单重试',409);}
  if(!validIssue(issue,repo))return error('反馈结果未确认，请稍后用同一表单重试',409);

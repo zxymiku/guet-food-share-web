@@ -18,9 +18,10 @@ globalThis.fetch=async(input,options={})=>{
  return networkFetch(input,options);
 };
 try {
- const env={...proxy.env,DEV_MODE:'true',APP_ORIGIN:'http://localhost:8787',DATA_ENCRYPTION_KEY:'local-test-secret-'.repeat(3),PIPELINE_SECRET:'pipeline-test',GITHUB_TOKEN:'mock-media-token',GITHUB_REPO:'',MEDIA_REPO:'test/guet-food-share-media'};
+ const env={...proxy.env,DEV_MODE:'true',APP_ORIGIN:'http://localhost:8787',DATA_ENCRYPTION_KEY:'local-test-secret-'.repeat(3),PIPELINE_SECRET:'pipeline-test',MEDIA_GITHUB_TOKEN:'mock-media-token',GITHUB_TOKEN:'mock-media-token',DISPATCH_GITHUB_TOKEN:'',GITHUB_WEB_REPO_ID:'12',GITHUB_ANDROID_REPO_ID:'11',GITHUB_REPO:'',MEDIA_REPO:'test/guet-food-share-media'};
  await env.DB.exec((await readFile(new URL('../migrations/0001_init.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
  await env.DB.exec((await readFile(new URL('../migrations/0002_media.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
+ for(const name of ['0003_feedback.sql','0004_password_login.sql','0005_github_user_grants.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
  let session='';
  const call=async(path,method='GET',data,headers={})=>worker.fetch(new Request('http://localhost:8787'+path,{method,headers:{...(session?{Cookie:session}:{}),...headers},body:data===undefined?undefined:typeof data==='string'?data:JSON.stringify(data)}),env);
  assert.equal((await call('/api/submissions','POST',{})).status,401);
@@ -53,7 +54,7 @@ try {
  const state=new URL(auth.headers.get('Location')).searchParams.get('state');
  assert.equal((await call('/auth/callback?state='+state+'&code=fake')).status,403);
  const realFetch=globalThis.fetch;
- globalThis.fetch=async(url)=>{if(String(url)==='https://github.com/login/oauth/access_token')return Response.json({access_token:'mock'});if(String(url)==='https://api.github.com/user')return Response.json({id:9999});throw new Error('Unexpected outbound request');};
+ globalThis.fetch=async(url)=>{if(String(url)==='https://github.com/login/oauth/access_token')return Response.json({access_token:'ghu_mock',expires_in:28800});if(String(url)==='https://api.github.com/user')return Response.json({id:9999});throw new Error('Unexpected outbound request');};
  let callback;
  try{callback=await call('/auth/callback?state='+state+'&code=fake','GET',undefined,{Cookie:'oauth_state='+state});}finally{globalThis.fetch=realFetch;}
  assert.equal(callback.status,302);const mobileCode=new URL(callback.headers.get('Location')).searchParams.get('code');
