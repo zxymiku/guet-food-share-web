@@ -1,7 +1,7 @@
 import {encryptionKey,seal,unseal} from './crypto.js';
 import {InputError} from './validation.js';
 const CHUNK=256*1024;
-const githubHeaders=env=>({Authorization:`Bearer ${env.GITHUB_TOKEN}`,Accept:'application/vnd.github+json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'});
+const githubHeaders=env=>({...env.GITHUB_TOKEN?{Authorization:`Bearer ${env.GITHUB_TOKEN}`}:{},Accept:'application/vnd.github+json','User-Agent':'guet-food-share','X-GitHub-Api-Version':'2022-11-28'});
 async function gh(env,path,method='GET',data) {
  const r=await fetch(`https://api.github.com/repos/${env.MEDIA_REPO}${path}`,{method,headers:githubHeaders(env),body:data?JSON.stringify(data):undefined});
  if(!r.ok)throw new Error(`Media GitHub request failed (${r.status})`);return r.json();
