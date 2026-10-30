@@ -139,7 +139,7 @@ async function routes(req, env) {
   if((path.startsWith('/api/photos/')||path.startsWith('/api/media/'))&&method==='GET') {
     const id=path.split('/').at(-1);if(!/^[0-9a-f-]{36}$/.test(id))return fail('Not found',404);
     const row=await env.DB.prepare('SELECT * FROM media WHERE id=?').bind(id).first();if(!row)return fail('Not found',404);
-    
+
     const visible=await env.DB.prepare("SELECT 1 FROM places,json_each(places.payload,?) WHERE json_each.value=? LIMIT 1").bind(row.kind==='video'?'$.videos':'$.photos',path).first();
     if(!visible&&row.user_id!==user&&!reviewer(user,env))return fail('Not found',404);
     return serveMedia(req,env,row);

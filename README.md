@@ -30,11 +30,15 @@ npm run dev
 
 ## Secret 与变量
 
-Cloudflare Worker secrets：`DATA_ENCRYPTION_KEY`、`PIPELINE_SECRET`、`GITHUB_TOKEN`、`GITHUB_CLIENT_SECRET`、`AMAP_SECURITY_JS_CODE`、`AMAP_REST_KEY`。其中 GITHUB_TOKEN 请使用专用细粒度 token，仅授权主项目与媒体仓库：主项目 Contents write（dispatch），媒体仓库 Contents write（Release 附件）。没有将本机 GitHub CLI 的全账号 token 复制到 Worker。
+完整申请步骤：[主项目凭据与最小权限指南](https://github.com/zxymiku/guet-food-share/blob/main/docs/CREDENTIALS.md)。
 
-普通变量见 `wrangler.jsonc`：`APP_ORIGIN`、`GITHUB_REPO`、`MEDIA_REPO`、`REVIEWER_GITHUB_IDS`、`GITHUB_CLIENT_ID`、`AMAP_WEB_KEY`。OAuth App 的 callback 是 `https://food.zxymiku.top/auth/callback`。
-
-数据加密密钥必须长期保存，丢失后无法解密既有草稿、会话和媒体；更换密钥需要先设计迁移。D1 中已公开地点按公开内容保存；待审稿、媒体索引和会话采用 AES-256-GCM。图片上传前移除 EXIF；视频会加密，但不承诺移除视频原有元数据。
+- 同一个 PASSWORD_CREDENTIAL 支持 Web 与 Android。运行 `npm run password:setup` 输入并上传加盐密码验证器，不公开原密码。
+- MEDIA_GITHUB_TOKEN 仅授权媒体仓库 Contents write；DISPATCH_GITHUB_TOKEN 仅授权主仓库 Contents write；FEEDBACK_GITHUB_TOKEN 仅授权主/Web 两仓库 Issues write。
+- INTAKE_SECRET 只读待审稿，PUBLISH_SECRET 只用于发布，分别与主仓库 Actions repository secret / production Environment secret 匹配。
+- GitHub App 仅开 Issues write，安装到两个目标仓库。Client ID/Secret 通过 GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET 配置，按 GITHUB_WEB_REPO_ID/GITHUB_ANDROID_REPO_ID 为用户令牌限制仓库。密码用户反馈由管理员代发，GitHub 用户反馈使用自己的授权。
+- DATA_ENCRYPTION_KEY 用于按用途派生加密密钥；已有部署不要随意更换。
+- 高德使用 AMAP_WEB_KEY、AMAP_SECURITY_JS_CODE、AMAP_REST_KEY，Android 的 AMAP_ANDROID_KEY 放主仓库 Actions Secret。
+- workers.dev 与预览入口已禁用。生产网页、API、截图、登录回调和更新统一使用 https://food.zxymiku.top 。
 
 ## 上传和播放
 
@@ -60,10 +64,10 @@ npm run check
 
 ## 意见反馈
 
-页面“反馈”支持两种方式：手动打开本 Web 仓库的 Issues/new；自动填写标题、详情与最多 3 张截图，确认公开授权后直接创建 Web Issue。Android 的同类入口发往主项目仓库。
+页面“反馈”可手动跳转 Web 仓库 Issues，也可自动填写文字和最多 3 张截图。Android 发往主项目仓库。
 
-自动反馈需要登录 GitHub。新增可选 Worker Secret `FEEDBACK_GITHUB_TOKEN`，对主项目和 Web 两个仓库授权 **Issues: write**；未单独设置时回退使用 GITHUB_TOKEN，因此该 token 也需具备这两处 Issues 写权限。截图继续使用 GITHUB_TOKEN 的媒体仓库 Contents 写权限，最大 8 MB/张，上传前移除 EXIF，加密保存于媒体 Releases。
+共享密码登录由管理员的 FEEDBACK_GITHUB_TOKEN 代发；GitHub App 登录由该用户自己的、对应平台的 user token 发布。不会在用户授权失败时改用管理员 Token。两种身份都支持自动反馈，且均不能通过客户端删除记录。
 
-反馈正文仅附带主动填写的文字、平台和应用版本。明确选择并确认的截图通过独立随机链接提供给 GitHub 图片代理；不会把普通美食图片地址自动设为公开。草稿在 D1 中加密保存。网络结果不明确时保留同一表单和请求编号，再次点击只查询/恢复结果，避免重复 Issue。每用户每天最多自动提交 5 次；人工反馈由 GitHub 页面处理。
+截图最大 8 MB/张，上传前去 EXIF，加密后保存到媒体仓库；明确确认的反馈截图才生成独立随机公开链接供 GitHub 图片代理读取。普通媒体仍遵循原投稿权限。正文只附用户填写的内容、平台和应用版本。
 
-新增迁移 `0003_feedback.sql`，部署前执行 `npm run db:remote`。新增接口：POST `/api/feedback/screenshots`（JPEG/PNG 二进制）、POST `/api/feedback`（JSON，platform 为 web/android）、GET `/api/feedback/{id}/screenshots/{mediaId}?key=...`（仅对应反馈截图的随机公开链接）。配置接口返回两平台的手动反馈 URL 及服务配置状态。可选变量 `FEEDBACK_WEB_REPO` 可替换 Web 反馈仓库，Android 跟随 GITHUB_REPO。
+网络结果不确定时保留表单与请求编号，重试确认而不重复创建。每个用户/设备身份每天最多自动提交 5 次，属于基础应用频次限制。
