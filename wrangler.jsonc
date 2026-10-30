@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "guet-food-share",
   "main": "src/worker.js",
+  "workers_dev": true,
   "compatibility_date": "2026-10-01",
   "routes": [{"pattern":"food.zxymiku.top","custom_domain":true}],
   "assets": {"directory": "./public", "binding": "ASSETS", "run_worker_first": true},
