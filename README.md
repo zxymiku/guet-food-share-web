@@ -26,7 +26,7 @@ npm run db:local
 npm run dev
 ```
 
-高德需三项配置：Web JSAPI Key、securityJsCode，以及服务端逆地理编码使用的 Web 服务 Key（AMAP_REST_KEY）。定位经授权后转换为 GCJ-02，自动填写坐标、解析地址，并可建议 80 米内的 POI 店名；必须由用户确认实际门店。拒绝定位仍可手动选点。
+高德凭据由每位用户在网页“地图 API”填写自己的 JSAPI Key 和 securityJsCode，默认长期保存在当前浏览器；不上传项目服务器。[详细申请教程](public/amap-guide.md)在 `/amap-guide.html` 渲染，涵盖收费与额度、域名限制和排错。定位经授权后转换为 GCJ-02，自动填写坐标、解析地址，并可建议 80 米内的 POI 店名；必须由用户确认实际门店。拒绝定位仍可手动选点。
 
 ## Secret 与变量
 
@@ -37,7 +37,7 @@ npm run dev
 - INTAKE_SECRET 只读待审稿，PUBLISH_SECRET 只用于发布，分别与主仓库 Actions repository secret / production Environment secret 匹配。
 - GitHub App 仅开 Issues write，安装到两个目标仓库。Client ID/Secret 通过 GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET 配置，按 GITHUB_WEB_REPO_ID/GITHUB_ANDROID_REPO_ID 为用户令牌限制仓库。密码用户反馈由管理员代发，GitHub 用户反馈使用自己的授权。
 - DATA_ENCRYPTION_KEY 用于按用途派生加密密钥；已有部署不要随意更换。
-- 高德使用 AMAP_WEB_KEY、AMAP_SECURITY_JS_CODE、AMAP_REST_KEY，Android 的 AMAP_ANDROID_KEY 放主仓库 Actions Secret。
+- 高德 Key 不再配置在 Worker 或 APK 构建。Web JS SDK 与地址解析直接连接高德；个人凭据与地点数据分离。Android 在自己的设置页填写 Android Key 和可选 Web 服务 Key。
 - workers.dev 与预览入口已禁用。生产网页、API、截图、登录回调和更新统一使用 https://food.zxymiku.top 。
 
 ## 上传和播放
@@ -71,3 +71,9 @@ npm run check
 截图最大 8 MB/张，上传前去 EXIF，加密后保存到媒体仓库；明确确认的反馈截图才生成独立随机公开链接供 GitHub 图片代理读取。普通媒体仍遵循原投稿权限。正文只附用户填写的内容、平台和应用版本。
 
 网络结果不确定时保留表单与请求编号，重试确认而不重复创建。每个用户/设备身份每天最多自动提交 5 次，属于基础应用频次限制。
+
+## 公开数据与教程
+
+`/api/places?limit=200` 返回完整地点字段、ID、创建/发布时间和 `nextCursor`，持续请求游标直到 null。前端自动获取全部页；“导出全部公开地点”保存可移植 JSON，媒体以原站路径引用。数据不含个人 Key，换用任意有效个人 API 绘制相同 GCJ-02 坐标即可。
+
+教程源码为 `public/amap-guide.md`，修改后运行 `npm run guide:build`。生成 HTML 不依赖外部样式、字体或脚本，Android 使用相同生成文件。主仓库运行 `node scripts/sync-map-guide.mjs` 同步到 APK。

@@ -21,7 +21,7 @@ try {
  const env={...proxy.env,DEV_MODE:'true',APP_ORIGIN:'http://localhost:8787',DATA_ENCRYPTION_KEY:'local-test-secret-'.repeat(3),PIPELINE_SECRET:'pipeline-test',MEDIA_GITHUB_TOKEN:'mock-media-token',GITHUB_TOKEN:'mock-media-token',DISPATCH_GITHUB_TOKEN:'',GITHUB_WEB_REPO_ID:'12',GITHUB_ANDROID_REPO_ID:'11',GITHUB_REPO:'',MEDIA_REPO:'test/guet-food-share-media'};
  await env.DB.exec((await readFile(new URL('../migrations/0001_init.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
  await env.DB.exec((await readFile(new URL('../migrations/0002_media.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
- for(const name of ['0003_feedback.sql','0004_password_login.sql','0005_github_user_grants.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
+ for(const name of ['0003_feedback.sql','0004_password_login.sql','0005_github_user_grants.sql','0006_places_pagination.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
  let session='';
  const call=async(path,method='GET',data,headers={})=>worker.fetch(new Request('http://localhost:8787'+path,{method,headers:{...(session?{Cookie:session}:{}),...headers},body:data===undefined?undefined:typeof data==='string'?data:JSON.stringify(data)}),env);
  assert.equal((await call('/api/submissions','POST',{})).status,401);
@@ -45,7 +45,7 @@ try {
  assert.equal((await call('/api/internal/publish/'+record.id,'POST',{...intake,name:'篡改店名'},admin)).status,409);
  assert.equal((await call('/api/internal/publish/'+record.id,'POST',intake,admin)).status,200);
  assert.equal((await call('/api/internal/publish/'+record.id,'POST',intake,admin)).status,200);
- session='';assert.equal((await call(photo)).status,200);const places=await (await call('/api/places')).json();assert.equal(places.places.length,1);assert.equal(places.places[0].description,payload.description);
+ session='';assert.equal((await call(photo)).status,200);const places=await (await call('/api/places')).json();assert.equal(places.places.length,1);assert.equal(places.places[0].description,payload.description);assert.ok(places.places[0].createdAt);assert.ok(places.places[0].publishedAt);assert.deepEqual(places.places[0].location,payload.location);assert.deepEqual(places.places[0].photos,[photo]);assert.deepEqual(places.places[0].videos,[video]);
  session=saved;assert.equal((await (await call('/api/submissions')).json()).submissions[0].status,'published');
  // OAuth + native PKCE with a mocked GitHub boundary, no real account traffic.
  env.GITHUB_CLIENT_ID='test-client';env.GITHUB_CLIENT_SECRET='test-secret';

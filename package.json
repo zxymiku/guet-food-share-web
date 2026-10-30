@@ -10,9 +10,11 @@
     "test": "node --test test/*.test.mjs",
     "test:integration": "node test/smoke.mjs",
     "check": "node --check src/worker.js && node --check public/app.js && wrangler deploy --dry-run",
-    "password:setup": "node scripts/set-password.mjs"
+    "password:setup": "node scripts/set-password.mjs",
+    "guide:build": "node scripts/build-guide.mjs"
   },
   "devDependencies": {
+    "marked": "18.1.2",
     "wrangler": "4.156.0"
   }
 }

@@ -1,4 +1,5 @@
 import {normalize, InputError} from './validation.js';
+import {listPlaces} from './places.js';
 import {seal,unseal} from './crypto.js';
 import {uploadMedia,serveMedia} from './github-media.js';
 import {appUpdate} from './app-update.js';
@@ -38,7 +39,7 @@ async function routes(req, env) {
   const auth=await identity(req,env),user=auth?.user||null;
   if(auth?.kind==='credential'&&path.startsWith('/api/')&&!credentialAllowed(method,path))return fail('密码凭证允许查看、上传美食和提交反馈，不允许删除、审核或管理',403);
   if(path==='/api/auth/password'&&method==='POST')return passwordLogin(req,env,await readJson(req));
-  if (path === '/api/config') return json({amapKey:env.AMAP_WEB_KEY || '',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,passwordReady:passwordReady(env),feedback:feedbackConfig(env)});
+  if (path === '/api/config') return json({mapCredentials:'personal',mapGuide:'/amap-guide.html',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,passwordReady:passwordReady(env),feedback:feedbackConfig(env)});
   if(path==='/api/feedback'&&method==='POST'){
     if(!user)return fail('请先登录后自动反馈；也可选择手动反馈',401);
     return submitFeedback(req,env,user,await readJson(req));
@@ -51,21 +52,8 @@ async function routes(req, env) {
   const feedbackImage=/^\/api\/feedback\/([0-9a-f-]{36})\/screenshots\/([0-9a-f-]{36})$/.exec(path);
   if(feedbackImage&&method==='GET')return feedbackScreenshot(req,env,feedbackImage[1],feedbackImage[2]);
   if((path==='/api/app-update'||path==='/download/android'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);
-  if(path==='/api/location'&&method==='POST'){
-    if(!user)return fail('请先登录后自动填写位置',401);
-    const {lng,lat}=await readJson(req);
-    if(typeof lng!=='number'||typeof lat!=='number'||!Number.isFinite(lng)||!Number.isFinite(lat)||lng<73||lng>136||lat<3||lat>54)return fail('坐标无效');
-    if(!env.AMAP_REST_KEY)return fail('请配置高德 Web 服务 Key 后使用地址自动填写',503);
-    const target=new URL('https://restapi.amap.com/v3/geocode/regeo');target.search=new URLSearchParams({key:env.AMAP_REST_KEY,location:`${lng},${lat}`,extensions:'all',radius:'100',poitype:'050000|060000'}).toString();
-    const r=await fetch(target,{signal:AbortSignal.timeout(10000)}),data=await r.json();if(data.status!=='1')return fail('地址解析失败，请手动填写',502);
-    return json({address:data.regeocode.formatted_address,pois:(data.regeocode.pois||[]).slice(0,8).map(p=>({name:p.name,distance:Number(p.distance),address:p.address,location:p.location}))});
-  }
-  if (path.startsWith('/_AMapService/')) {
-    const sub = path.slice('/_AMapService'.length);
-    if(method !== 'GET' || !/^\/v[345]\/[a-zA-Z0-9/_-]+$/.test(sub) || !env.AMAP_SECURITY_JS_CODE) return fail('地图服务未配置',503);
-    const target = new URL('https://restapi.amap.com'+sub); target.search=url.search; target.searchParams.set('jscode',env.AMAP_SECURITY_JS_CODE);
-    const r=await fetch(target,{signal:AbortSignal.timeout(10000)}); return new Response(r.body,{status:r.status,headers:{'Content-Type':r.headers.get('Content-Type')||'application/json','Cache-Control':'no-store'}});
-  }
+  // Personal map keys never transit through this service, including legacy routes.
+  if(path==='/api/location'||path.startsWith('/_AMapService/'))return fail('请在设备上配置自己的高德 API；地图与地址解析直接连接高德，本站不接收个人 Key。',410);
   if(path === '/auth/github' && method==='GET') {
     if(!env.GITHUB_CLIENT_ID) return fail('请先配置 GitHub OAuth App',503);
     const challenge=url.searchParams.get('challenge');
@@ -115,8 +103,7 @@ async function routes(req, env) {
     return row?json({id:row.id,status:row.status,...await unseal(row.payload,env)}):fail('Not found',404);
   }
   if(path === '/api/places' && method==='GET') {
-    const rows=await env.DB.prepare('SELECT id,payload FROM places ORDER BY published_at DESC LIMIT 500').all();
-    return json({places:rows.results.map(r=>({ ...JSON.parse(r.payload),id:r.id}))});
+    return json(await listPlaces(env.DB,url),200,{'Access-Control-Allow-Origin':'*'});
   }
   if(path.startsWith('/api/internal/')) {
     const secret=path.startsWith('/api/internal/submissions/')&&method==='GET'?(env.INTAKE_SECRET||env.PIPELINE_SECRET):path.startsWith('/api/internal/publish/')&&method==='POST'?(env.PUBLISH_SECRET||env.PIPELINE_SECRET):null;

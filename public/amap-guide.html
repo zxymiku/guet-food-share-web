@@ -1,0 +1,162 @@
+<!doctype html><html lang="zh-CN" data-ark-theme="ark" data-ark-depth="complex"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>高德 API 详细申请教程 · 桂电美食分享</title><style>
+:root{color-scheme:dark;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#f4f6f6;background:#101416;line-height:1.85}*{box-sizing:border-box}body{margin:0}main{max-width:920px;margin:auto;padding:32px 28px 80px}h1{font-size:clamp(28px,6vw,44px);line-height:1.3;margin:28px 0}h2{font-size:24px;border-top:1px solid #405056;padding-top:28px;margin-top:42px}h3{font-size:19px;color:#18d1ff}p,li{font-size:16px}a{color:#70dfff;text-underline-offset:4px}a:focus-visible{outline:2px solid #18d1ff;outline-offset:5px}table{border-collapse:collapse;display:block;overflow-x:auto;font-size:14px}th,td{padding:12px;border:1px solid #405056;min-width:150px;vertical-align:top;text-align:left}th{background:#1a2125}code{font-family:ui-monospace,monospace;background:#1a2125;padding:2px 5px;overflow-wrap:anywhere}pre{background:#1a2125;padding:18px;overflow:auto;font-size:14px}li{margin:10px 0}ol,ul{padding-left:25px}.mast{border-bottom:3px solid #18d1ff;padding:12px 0;font:12px monospace;letter-spacing:2px;color:#b3bfc4}.notice{color:#b3bfc4;font-size:14px}@media(max-width:600px){main{padding:20px 18px 60px}h2{font-size:22px}th,td{min-width:130px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style></head><body><main><div class="mast">GUET / PERSONAL MAP GUIDE</div><p class="notice">在网页中阅读后切回原标签页；Android 离线教程点击“返回填写”。</p><h1>自己的高德 API，大家的美食地图</h1>
+<p>适用：桂电美食分享 Web 与 Android。文档更新：2026-10-30。高德控制台的名称、免费额度、计费和认证要求可能调整，请以你账户当前显示的规则为准。</p>
+<h2>1. 为什么需要自行申请</h2>
+<p>高德个人 API 大量使用、超出免费额度、使用收费服务或涉及商业授权时，需要按高德规则缴费或购买相应服务。因此，请你自己申请 API，管理自己的调用量和费用。本项目不提供让所有用户共用的个人 Key，也不会承诺无限免费。</p>
+<p>个人 API 不会上传到本项目服务器、GitHub 仓库、投稿记录或地点导出文件。地图需要联网认证：Key 以及相应安全信息会由你的浏览器或手机直接发送给高德。这里的“不上传”指不交给本项目保存，不代表高德地图可以离线免认证使用。</p>
+<p>项目代码已经开源，欢迎审查：<a href="https://github.com/zxymiku/guet-food-share">Android 与投稿流程源码</a>、<a href="https://github.com/zxymiku/guet-food-share-web">Web 与服务器源码</a>。不要将个人 API 粘贴到 GitHub Issue、PR、反馈文字或截图。</p>
+<h2>2. 先选对平台和填写位置</h2>
+<table>
+<thead>
+<tr>
+<th>使用场景</th>
+<th>高德控制台的平台类型</th>
+<th>需要填写</th>
+<th>在本项目的填写位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>浏览器查看地图、选点、自动填写地址</td>
+<td>Web 端（JSAPI）</td>
+<td>Key 和配套 securityJsCode</td>
+<td>网页顶部“地图 API”</td>
+</tr>
+<tr>
+<td>Android 查看地图与选点</td>
+<td>Android 平台</td>
+<td>Android Key</td>
+<td>应用顶部“地图 API”</td>
+</tr>
+<tr>
+<td>Android 自动填写地址（可选）</td>
+<td>Web 服务</td>
+<td>Web 服务 Key</td>
+<td>Android“地图 API”中的可选栏</td>
+</tr>
+</tbody></table>
+<p>三种 Key 不通用。Web 端不需要 Android Key，也不需要填写 Web 服务 Key。Android 不需要 securityJsCode；不填写可选 Web 服务 Key 时，仍能显示地图、选点、定位和手工填写地址。</p>
+<h2>3. 注册高德开放平台并创建应用</h2>
+<ol>
+<li>打开<a href="https://lbs.amap.com/">高德开放平台</a>，点击注册或登录。也可以直接打开<a href="https://console.amap.com/">开发者控制台</a>。</li>
+<li>按页面提示完成手机号验证、开发者资料与必要的实名认证。个人使用选择适合自己的个人开发者身份；经营或商用场景请先核对授权要求。</li>
+<li>在控制台查找“应用管理”→“我的应用”。首次进入没有应用是正常情况。</li>
+<li>点击“创建新应用”，名称可以填“我的桂电美食地图”，应用类型按实际用途选择。一个应用下面可以有不同平台的 Key。</li>
+<li>在该应用下点击“添加 Key”，填写能区分平台的名称，如“美食地图-Web”或“美食地图-Android”。</li>
+<li>选择平台类型，再按下面对应章节完成配置。不要因为已有一个 Key 就将它复制到所有平台。</li>
+</ol>
+<p>本教程没有真实 Key，也不代你注册账户、进行认证、开通套餐或支付费用。</p>
+<h2>4. Web：申请 JSAPI Key 和安全密钥</h2>
+<ol>
+<li>添加 Key 时，服务平台选择“Web 端（JSAPI）”。“Web 服务”是另一种类型，不能替代。</li>
+<li>根据当前控制台要求设置域名白名单。使用正式网站时填 <code>food.zxymiku.top</code>。若界面要求仅域名，不加 <code>https://</code>、路径或斜杠；按该字段的提示填写，不使用任意域名通配符。</li>
+<li>如果你部署了自己的 Web 副本，应填写你实际访问的域名。<code>localhost</code>、<code>127.0.0.1</code>、另一个子域名或自定义端口可能不等同于生产域名，开发时应单独申请测试 Key，并依高德要求设置白名单。</li>
+<li>保存后，在 Key 列表或详情找到“Key”以及“安全密钥”（<code>securityJsCode</code>）。两个字段通常都是 32 位十六进制字符串，但它们不是同一个值。安全密钥必须与这个 JSAPI Key 配套。</li>
+<li>返回桂电美食分享网页，点击顶部“地图 API”。没有地图时也可以点击地图区域的“填写自己的高德 API”。</li>
+<li>将 JSAPI Key 粘贴到第一栏，将同一个 Key 的 <code>securityJsCode</code> 粘贴到第二栏。页面使用遮蔽输入框，避免旁人直接看到。</li>
+<li>默认勾选“在此浏览器长期记住”。点击“保存并加载地图”后页面重载，地图会自动加载，之后再次访问、关闭并重启浏览器、退出本项目账号，都不需要重新填写。</li>
+<li>等待地图显示，再点击任一公开地点。地图和标记依赖你的 API；地点文字、坐标和图片引用来自共享公开记录。</li>
+</ol>
+<h3>Web 的保存方式与边界</h3>
+<p>默认长期保存使用浏览器本地存储 <code>localStorage</code>，没有应用设定的自动过期时间。它不是云端账号同步：换设备、换浏览器、换网站域名、无痕窗口、手动清理网站数据或浏览器自动清理后，需要重新填写。浏览器禁止存储时会显示错误，不会声称保存成功。</p>
+<p>在公共设备上取消勾选，改用“仅当前标签页”模式。该模式使用 <code>sessionStorage</code>，一般关闭标签页后清除；浏览器恢复会话功能可能恢复标签页数据，因此离开公共设备前仍请主动清除。</p>
+<p>凭据以本地文本保存。浏览器扩展、同源页面脚本及有设备访问权的人可能读取；本项目不会把它们写入 Cookie、服务器账户或公开数据。调用高德 JS SDK 时，Key 和安全码本来就必须供浏览器使用，不能把前端存储当作保险库。</p>
+<p>高德官方同时介绍了服务端安全代理方案。本项目采用个人凭据在客户端直接接入，避免项目服务器收集每位用户的密钥；这不等同于服务端代理的保密性。请配置域名限制、关注额度，若你的使用场景必须隐藏安全码，应部署由自己控制的代理并按官方规范接入，不要把密钥交给公共项目服务器。<a href="https://lbs.amap.com/api/javascript-api-v2/guide/abc/jscode">高德安全密钥说明</a>。</p>
+<h3>修改或清除 Web API</h3>
+<p>打开“地图 API”，直接替换两个字段并保存。更换 Key 时必须同时核对配套安全码。页面重载会重新创建高德 SDK 实例，避免继续使用旧 Key。保存前请处理未提交的投稿表单。</p>
+<p>点击“清除本机 API 并关闭地图”会删除长期和当前标签页两种存储，并重载页面。其他已打开的本站标签页也会响应长期设置变化而重载；公共设备操作结束后请关闭所有相关标签页。清除地图 API 不会删除公开地点，也不会退出登录。</p>
+<h2>5. Android：申请与你的安装包匹配的 Key</h2>
+<ol>
+<li>安装本项目 Android 应用，打开顶部“地图 API”。首次打开无需登录、无需填写 Key，也能进入此页面和离线教程。</li>
+<li>找到“包名”与“当前签名 SHA-1”。使用页面提供的“复制包名”“复制当前 SHA-1”，不要手抄。它们由手机读取当前安装包计算得出。</li>
+<li>高德控制台 → 我的应用 → 添加 Key → 服务平台选择“Android 平台”。</li>
+<li>包名填 <code>com.guet.foodshare</code>。自编译时若更改了包名，必须以安装后设置页显示的包名为准。</li>
+<li>在对应的发布版/调试版 SHA-1 字段填入当前安装版本的签名指纹。正式 Release 用发布证书 SHA-1；本地 debug 构建使用调试证书 SHA-1。不要填 SHA-256，也不要使用另一个开发者的 debug 指纹。</li>
+<li>官方正式安装包当前公开的发布证书 SHA-1 如下；如以后签名信息更新，优先使用应用内实际显示的值。</li>
+</ol>
+<pre><code class="language-text">包名：com.guet.foodshare
+正式证书 SHA-1：15:12:5E:C6:61:AA:F9:D6:A2:34:D7:49:67:E0:B8:E9:D9:C5:69:68
+</code></pre>
+<ol start="7">
+<li>保存得到 Android Key，返回应用，将其粘贴到“Android 平台 Key”栏。</li>
+<li>阅读高德服务说明和隐私政策，勾选同意后点击“保存并启用地图”。不授予系统定位权限也能浏览地图和手动选点；只有主动点击定位时才请求系统权限。</li>
+<li>若底图不显示，检查 Key 平台、包名、当前证书 SHA-1、控制台服务权限、网络与额度。修改配置后重新保存；仍不生效可完全关闭并重新打开应用，等待控制台配置传播后再试。</li>
+</ol>
+<p>不需要修改源码、重新构建 APK 或让管理员把你的 Key 加到 GitHub Secret。应用使用 Android 系统密钥库对凭据加密，保存在应用私有目录，禁用系统备份；退出项目账号不清除地图 API。卸载应用、清除应用数据或密钥库失效后需重新填写。设置页禁止普通系统截图和录屏，仍请自行保护设备。</p>
+<p><a href="https://lbs.amap.com/api/android-sdk/guide/create-project/get-key">高德 Android Key 申请说明</a> · <a href="https://lbs.amap.com/pages/privacy/">高德隐私政策</a></p>
+<h2>6. Android 可选：自动填写门店地址</h2>
+<ol>
+<li>在同一应用下另外添加 Key，服务平台选择“Web 服务”。命名如“美食地图-地址解析”。</li>
+<li>按当前控制台要求启用地理编码/逆地理编码服务，核对该服务的每日额度和调用频率。</li>
+<li>返回 Android → 地图 API → “Web 服务 Key（可选）”，粘贴该 Key，与 Android Key 一起保存。</li>
+<li>登录项目后进入分享表单，选择“在地图上选点”或“定位并自动填写地址”。坐标先写入表单，再由手机直接请求高德逆地理编码接口。解析得到地址，并可能建议附近 80 米以内的店名。</li>
+<li>必须核对实际店名、门牌和门店位置。附近 POI 可能是隔壁店；设备定位可能位于宿舍或道路，并不等于门店位置。确认内容后才提交。</li>
+</ol>
+<p>该可选功能是手机直连高德，不经过项目 Worker。不要填写项目服务器的 IP 白名单：请求来自你的手机网络出口，移动网络或 Wi-Fi 切换会改变 IP。若当前高德账户政策要求固定 IP、安全签名或服务端使用，或你不愿在手机保留 Web 服务 Key，请留空并手动填写地址。本应用没有让你填写私钥或关闭账户安全限制的要求，也没有实现服务端签名代理。</p>
+<p>Web 端的地址解析使用自己的 JSAPI Key 与 Geocoder 插件，不使用本栏。</p>
+<h2>7. 额度、收费和异常排查</h2>
+<p>控制台查找“用量/配额/流量分析”“服务管理”“费用/订单/资源包”等栏目，按应用、Key 和具体服务检查。不同 SDK 和接口的免费次数、QPS、计量单位及商业许可可能不同；个人认证不代表全部服务永久免费。开发者认证费用、调用超额费用、付费能力与商业授权也不是一回事。</p>
+<p>大量使用或选择收费能力前，先查看<a href="https://lbs.amap.com/upgrade">高德服务与权益入口</a>和账户内的当前价格说明，确认是否需购买资源包、升级权益、充值或单独取得许可。若控制台支持限额、告警或停用开关，按自己的预算设置。配额耗尽可能限流或停止服务，并不一定自动扣费；具体按账户已开通的合同与计费方式执行。本项目不会代你付费或自动购买。</p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>优先检查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>32 位格式错误</td>
+<td>是否复制完整、有空格、把应用名称当成 Key、Key 与安全码是否对调</td>
+</tr>
+<tr>
+<td>Web 白屏或 INVALID_USER_KEY</td>
+<td>是否选了 Web 端（JSAPI）、Key 是否被禁用、网络能否访问高德</td>
+</tr>
+<tr>
+<td>INVALID_USER_SCODE</td>
+<td>JSAPI Key 与 securityJsCode 是否配套、是否刚更换配置</td>
+</tr>
+<tr>
+<td>INVALID_USER_DOMAIN</td>
+<td>实际访问域名是否被允许，localhost 与生产环境是否混用</td>
+</tr>
+<tr>
+<td>Android 底图不显示</td>
+<td>Android Key、包名和当前安装证书 SHA-1 是否三者对应</td>
+</tr>
+<tr>
+<td>USERKEY_PLAT_NOMATCH</td>
+<td>Key 平台与当前 API 是否匹配；错误码名称以高德响应为准</td>
+</tr>
+<tr>
+<td>地址解析失败但地图正常</td>
+<td>Android 可选 Web 服务 Key、接口权限、IP 限制或对应额度</td>
+</tr>
+<tr>
+<td>CUQPS_HAS_EXCEEDED_THE_LIMIT / 配额耗尽</td>
+<td>降低频率，查看当前服务用量和套餐；不要通过共享他人 Key 绕过限制</td>
+</tr>
+<tr>
+<td>地图正常但没有门店</td>
+<td>是否有已审核公开的数据、是否设置了搜索/分类筛选、网络能否读取公开列表</td>
+</tr>
+<tr>
+<td>下次访问又要填</td>
+<td>是否关闭了长期保存、清理了站点数据、换了域名/浏览器、使用了无痕模式</td>
+</tr>
+<tr>
+<td>点位整体偏移</td>
+<td>是否误把 WGS-84 或 BD-09 当作 GCJ-02；不要重复转换已有高德坐标</td>
+</tr>
+</tbody></table>
+<p>Key 误公开时，去高德控制台撤销/重置对应凭据，再在本机重新填写。报告问题时描述平台、时间、现象和错误码即可，遮挡 Key、安全码、账号和私人位置。</p>
+<h2>8. 其他人的 API 为什么也能显示你的标记</h2>
+<p>地图 API 是加载底图和使用高德服务的凭据，地点数据是独立的公开记录。A 用户用自己的 Key 标记门店，提交的内容包括店名、分类、地址、推荐理由、前往方法、GCJ-02 经度纬度、图片/视频引用和公开授权；提交 ID、创建时间和发布时间由系统记录。A 的 Key 不写入这些数据。</p>
+<p>投稿经人工审核公开后，B 用户无论在 Web 还是 Android 上填写自己的 Key，都读取同一个公开地点列表，并在 B 的地图上按保存的坐标绘制标记。无需 A 的 Key，A 撤销或更换自己的 Key 也不会移除已公开的标记。未提交或待审核点位只对相应流程可见，不会因为点过地图就自动公开。</p>
+<p>应用自动读取所有分页，不再仅显示最近 500 条。新地点公开后，Web 重新加载页面、Android“更多”→“刷新公开地点”即可获取。</p>
+<h3>保存与读取完整档案</h3>
+<p>Web 点击“导出全部公开地点”，Android 点击“更多”→“导出全部公开地点”，可以保存 JSON。导出含所有公开地点及媒体引用、坐标系、版本和时间；不含任何人的地图 API、登录凭据或待审核草稿。</p>
+<p>媒体以引用形式记录，JSON 不嵌入照片/视频二进制，也不包含解密密钥。读取者用 <code>mediaBaseUrl</code> 加相对路径访问原站已公开媒体；将 JSON 离线归档时如需长期保存媒体，应另行下载有权使用的公开媒体。图片/视频服务的可用性仍依赖原站和媒体存储，不能把 JSON 当成全部媒体文件的离线备份。</p>
+<p>开发者可读取 <code>/api/places?limit=200</code>，持续使用返回的 <code>nextCursor</code> 请求后续页，直到为 <code>null</code>。每条记录中的 <code>location.lng</code> 是经度，<code>location.lat</code> 是纬度，<code>location.crs</code> 固定为 <code>GCJ-02</code>。高德 JS Marker 使用 <code>[经度, 纬度]</code>，Android <code>LatLng</code> 使用 <code>(纬度, 经度)</code>，不要颠倒，也不要再做一次 GPS 转换。读取导出文件时使用 <code>archive.places</code>，媒体地址用 <code>new URL(path, archive.mediaBaseUrl)</code> 解析。详情字段应作为文本渲染，不作为 HTML 或可执行脚本。</p>
+<p>开放数据让大家共享标记，个人 API 只负责各自的地图访问。申请完成后回到“地图 API”填写即可。</p>
+</main></body></html>
