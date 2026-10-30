@@ -34,7 +34,8 @@ const reviewer = (user,env) => !!user && (env.REVIEWER_GITHUB_IDS||'').split(','
 async function dispatch(env,id){await github(env,`/repos/${env.GITHUB_REPO}/dispatches`,{event_type:'food-submitted',client_payload:{id}});await env.DB.prepare("UPDATE submissions SET status='queued' WHERE id=? AND status='pending'").bind(id).run();}
 async function routes(req, env) {
   const url = new URL(req.url), path = url.pathname, method = req.method;
-  if (env.APP_ORIGIN && !dev(req, env) && url.origin !== env.APP_ORIGIN) return fail('访问域名未配置',403);
+  const allowedOrigins=[env.APP_ORIGIN,...(env.ALLOWED_ORIGINS||'').split(',')].filter(Boolean);
+  if (allowedOrigins.length && !dev(req, env) && !allowedOrigins.includes(url.origin)) return fail('访问域名未配置',403);
   if (!['GET','HEAD'].includes(method) && req.headers.get('Origin') && req.headers.get('Origin') !== url.origin) return fail('来源不受信任',403);
   if (path === '/api/config') return json({amapKey:env.AMAP_WEB_KEY || '',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID});
   if((path==='/api/app-update'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);

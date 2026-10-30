@@ -32,7 +32,7 @@ npm run dev
 
 Cloudflare Worker secrets：`DATA_ENCRYPTION_KEY`、`PIPELINE_SECRET`、`GITHUB_TOKEN`、`GITHUB_CLIENT_SECRET`、`AMAP_SECURITY_JS_CODE`、`AMAP_REST_KEY`。其中 GITHUB_TOKEN 请使用专用细粒度 token，仅授权主项目与媒体仓库：主项目 Contents write（dispatch），媒体仓库 Contents write（Release 附件）。没有将本机 GitHub CLI 的全账号 token 复制到 Worker。
 
-普通变量见 `wrangler.jsonc`：`APP_ORIGIN`、`GITHUB_REPO`、`MEDIA_REPO`、`REVIEWER_GITHUB_IDS`、`GITHUB_CLIENT_ID`、`AMAP_WEB_KEY`。OAuth App 的 callback 是 `https://guet-food-share.zxymiku.workers.dev/auth/callback`。
+普通变量见 `wrangler.jsonc`：`APP_ORIGIN`、`GITHUB_REPO`、`MEDIA_REPO`、`REVIEWER_GITHUB_IDS`、`GITHUB_CLIENT_ID`、`AMAP_WEB_KEY`。OAuth App 的 callback 是 `https://food.zxymiku.top/auth/callback`。
 
 数据加密密钥必须长期保存，丢失后无法解密既有草稿、会话和媒体；更换密钥需要先设计迁移。D1 中已公开地点按公开内容保存；待审稿、媒体索引和会话采用 AES-256-GCM。图片上传前移除 EXIF；视频会加密，但不承诺移除视频原有元数据。
 

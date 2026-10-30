@@ -3,7 +3,8 @@
   "name": "guet-food-share",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
+  "routes": [{"pattern":"food.zxymiku.top","custom_domain":true}],
   "assets": {"directory": "./public", "binding": "ASSETS", "run_worker_first": true},
   "d1_databases": [{"binding": "DB", "database_name": "guet-food-share", "database_id": "9267ee8b-1492-47d4-aaf2-c15829ad264a", "migrations_dir": "migrations"}],
-  "vars": {"APP_ORIGIN": "https://guet-food-share.zxymiku.workers.dev", "DEV_MODE": "false", "GITHUB_REPO": "zxymiku/guet-food-share", "MEDIA_REPO": "zxymiku/guet-food-share-media", "REVIEWER_GITHUB_IDS": "95949338", "AMAP_WEB_KEY": ""}
+  "vars": {"APP_ORIGIN": "https://food.zxymiku.top", "ALLOWED_ORIGINS": "https://guet-food-share.zxymiku.workers.dev", "DEV_MODE": "false", "GITHUB_REPO": "zxymiku/guet-food-share", "MEDIA_REPO": "zxymiku/guet-food-share-media", "REVIEWER_GITHUB_IDS": "95949338", "AMAP_WEB_KEY": ""}
 }
