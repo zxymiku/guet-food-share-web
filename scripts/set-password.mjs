@@ -33,7 +33,7 @@ try{
   process.stdout.write('已更新被 Git 忽略的 .dev.vars，仅保存加盐验证器。\n');
  }else{
   const child=spawn(process.execPath,[fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js',import.meta.url)),'secret','put','PASSWORD_CREDENTIAL'],{cwd:root,stdio:['pipe','inherit','inherit']});
-  child.stdin.end(descriptor+'\n');const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve);});if(code!==0)throw new Error('上传 Worker Secret 失败，未启用新密码。');
+  child.stdin.end(descriptor+'\n');const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve);});if(code!==0)throw new Error('上传 Worker Secret 失败，未启用新密码。如果提示最新版本尚未部署，请先核对并部署当前配置，再重新运行本命令；不要将原密码发到聊天或 Issue。');
   process.stdout.write('共享密码已配置。仅向需要上传美食的人提供原密码；修改验证器会使旧密码会话失效。\n');
  }
 }catch(e){process.stderr.write(e.message+'\n');process.exitCode=1;}
