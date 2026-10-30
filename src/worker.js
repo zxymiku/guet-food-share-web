@@ -2,6 +2,7 @@ import {normalize, InputError} from './validation.js';
 import {seal,unseal} from './crypto.js';
 import {uploadMedia,serveMedia} from './github-media.js';
 import {appUpdate} from './app-update.js';
+import {feedbackConfig,submitFeedback,feedbackScreenshot} from './feedback.js';
 
 const enc = new TextEncoder();
 const json = (data, status = 200, headers = {}) => Response.json(data, {status, headers: {'Cache-Control': 'no-store', ...headers}});
@@ -37,7 +38,18 @@ async function routes(req, env) {
   const allowedOrigins=[env.APP_ORIGIN,...(env.ALLOWED_ORIGINS||'').split(',')].filter(Boolean);
   if (allowedOrigins.length && !dev(req, env) && !allowedOrigins.includes(url.origin)) return fail('访问域名未配置',403);
   if (!['GET','HEAD'].includes(method) && req.headers.get('Origin') && req.headers.get('Origin') !== url.origin) return fail('来源不受信任',403);
-  if (path === '/api/config') return json({amapKey:env.AMAP_WEB_KEY || '',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID});
+  if (path === '/api/config') return json({amapKey:env.AMAP_WEB_KEY || '',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,feedback:feedbackConfig(env)});
+  if(path==='/api/feedback'&&method==='POST'){
+    const user=await session(req,env);if(!user)return fail('请先登录后自动反馈；也可选择手动反馈',401);
+    return submitFeedback(req,env,user,await readJson(req));
+  }
+  if(path==='/api/feedback/screenshots'&&method==='POST'){
+    const user=await session(req,env);if(!user)return fail('请先登录后上传反馈截图',401);
+    if(!['image/jpeg','image/png'].includes(req.headers.get('Content-Type')?.split(';')[0]))return fail('反馈截图仅支持 JPEG / PNG');
+    return json(await uploadMedia(req,env,user),201);
+  }
+  const feedbackImage=/^\/api\/feedback\/([0-9a-f-]{36})\/screenshots\/([0-9a-f-]{36})$/.exec(path);
+  if(feedbackImage&&method==='GET')return feedbackScreenshot(req,env,feedbackImage[1],feedbackImage[2]);
   if((path==='/api/app-update'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);
   if(path==='/api/location'&&method==='POST'){
     if(!await session(req,env))return fail('请先登录后自动填写位置',401);

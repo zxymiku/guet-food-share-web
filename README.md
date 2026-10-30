@@ -57,3 +57,13 @@ npm run check
 ```
 
 完整配置与 Android 发布说明位于主项目 docs/DEPLOYMENT.md。
+
+## 意见反馈
+
+页面“反馈”支持两种方式：手动打开本 Web 仓库的 Issues/new；自动填写标题、详情与最多 3 张截图，确认公开授权后直接创建 Web Issue。Android 的同类入口发往主项目仓库。
+
+自动反馈需要登录 GitHub。新增可选 Worker Secret `FEEDBACK_GITHUB_TOKEN`，对主项目和 Web 两个仓库授权 **Issues: write**；未单独设置时回退使用 GITHUB_TOKEN，因此该 token 也需具备这两处 Issues 写权限。截图继续使用 GITHUB_TOKEN 的媒体仓库 Contents 写权限，最大 8 MB/张，上传前移除 EXIF，加密保存于媒体 Releases。
+
+反馈正文仅附带主动填写的文字、平台和应用版本。明确选择并确认的截图通过独立随机链接提供给 GitHub 图片代理；不会把普通美食图片地址自动设为公开。草稿在 D1 中加密保存。网络结果不明确时保留同一表单和请求编号，再次点击只查询/恢复结果，避免重复 Issue。每用户每天最多自动提交 5 次；人工反馈由 GitHub 页面处理。
+
+新增迁移 `0003_feedback.sql`，部署前执行 `npm run db:remote`。新增接口：POST `/api/feedback/screenshots`（JPEG/PNG 二进制）、POST `/api/feedback`（JSON，platform 为 web/android）、GET `/api/feedback/{id}/screenshots/{mediaId}?key=...`（仅对应反馈截图的随机公开链接）。配置接口返回两平台的手动反馈 URL 及服务配置状态。可选变量 `FEEDBACK_WEB_REPO` 可替换 Web 反馈仓库，Android 跟随 GITHUB_REPO。

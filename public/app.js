@@ -47,3 +47,5 @@ async function loadMap(){if(!state.config.amapKey){$('#map-status').textContent=
  $('#map-empty').hidden=true;$('#map-status').textContent='高德地图';state.map.on('click',e=>{if(!state.picking)return;state.picking=false;const {lng,lat}=e.lnglat;$('#submit-dialog').showModal();fillLocation({lng,lat});});render();}
 async function init(){try{const [config,me,places]=await Promise.all([api('/api/config'),api('/api/me'),api('/api/places')]);state.config=config;state.user=me.user;state.places=places.places;$('#login').textContent=state.user?'退出登录':config.dev?'本地测试登录 ↗':'GitHub 登录 ↗';render();await loadMap();}catch(e){$('#map-status').textContent='连接异常';toast(e.message);render();}}
 init();
+
+export {api,post,stripMetadata,toast,state,node};

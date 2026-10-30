@@ -11,3 +11,6 @@ MEDIA_REPO=zxymiku/guet-food-share-media
 GITHUB_TOKEN=
 REVIEWER_GITHUB_IDS=
 PIPELINE_SECRET=replace-with-a-different-32-character-secret
+
+FEEDBACK_GITHUB_TOKEN=
+FEEDBACK_WEB_REPO=zxymiku/guet-food-share-web
