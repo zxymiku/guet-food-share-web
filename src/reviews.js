@@ -13,7 +13,7 @@ export async function reviews(req,env,id,user,input){
  return Response.json({...summary,reviews:rows.results,nextCursor:rows.results.length===100?rows.results.at(-1).id:null},{headers:{'Cache-Control':'no-store'}});
  }
  if(!user)return Response.json({error:'请先登录'},{status:401});
- if(!Number.isInteger(input.score)||input.score<1||input.score>5||typeof input.comment!=='string'||input.comment.length>1000||!/^[-a-zA-Z0-9]{20,80}$/.test(input.deviceId||''))throw new InputError('请选择 1～5 分，评价最多 1000 字，并允许设备标识');
+ if(!Number.isInteger(input?.score)||input.score<1||input.score>5||typeof input.comment!=='string'||input.comment.length>1000||!/^[-a-zA-Z0-9]{20,80}$/.test(input.deviceId||''))throw new InputError('请选择 1～5 分，评价最多 1000 字，并允许设备标识');
  const day=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
  const ip=await hash(env,'ip:'+day+':'+(req.headers.get('CF-Connecting-IP')||'unknown'));
  const device=await hash(env,'device:'+day+':'+input.deviceId);

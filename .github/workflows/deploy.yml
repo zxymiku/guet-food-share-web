@@ -27,7 +27,7 @@ jobs:
             exit 1
           fi
       - run: npm ci
-      - run: npm run check
+      - run: npm test && npm run check
       - run: npm run db:remote && npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,7 +1,7 @@
 <!doctype html><html lang="zh-CN" data-ark-theme="ark" data-ark-depth="complex"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>高德 API 详细申请教程 · 桂电美食分享</title><style>
 :root{color-scheme:dark;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#f4f6f6;background:#101416;line-height:1.85}*{box-sizing:border-box}body{margin:0}main{max-width:920px;margin:auto;padding:32px 28px 80px}h1{font-size:clamp(28px,6vw,44px);line-height:1.3;margin:28px 0}h2{font-size:24px;border-top:1px solid #405056;padding-top:28px;margin-top:42px}h3{font-size:19px;color:#18d1ff}p,li{font-size:16px}a{color:#70dfff;text-underline-offset:4px}a:focus-visible{outline:2px solid #18d1ff;outline-offset:5px}table{border-collapse:collapse;display:block;overflow-x:auto;font-size:14px}th,td{padding:12px;border:1px solid #405056;min-width:150px;vertical-align:top;text-align:left}th{background:#1a2125}code{font-family:ui-monospace,monospace;background:#1a2125;padding:2px 5px;overflow-wrap:anywhere}pre{background:#1a2125;padding:18px;overflow:auto;font-size:14px}li{margin:10px 0}ol,ul{padding-left:25px}.mast{border-bottom:3px solid #18d1ff;padding:12px 0;font:12px monospace;letter-spacing:2px;color:#b3bfc4}.notice{color:#b3bfc4;font-size:14px}@media(max-width:600px){main{padding:20px 18px 60px}h2{font-size:22px}th,td{min-width:130px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 </style></head><body><main><div class="mast">GUET / PERSONAL MAP GUIDE</div><p class="notice">在网页中阅读后切回原标签页；Android 离线教程点击“返回填写”。</p><h1>自己的高德 API，大家的美食地图</h1>
-<p>适用：桂电美食分享 Web 与 Android。文档更新：2026-10-30。高德控制台的名称、免费额度、计费和认证要求可能调整，请以你账户当前显示的规则为准。</p>
+<p>适用：桂电美食分享 Web 与 Android。文档更新：2026-11-01。高德控制台的名称、免费额度、计费和认证要求可能调整，请以你账户当前显示的规则为准。</p>
 <h2>1. 为什么需要自行申请</h2>
 <p>高德个人 API 大量使用、超出免费额度、使用收费服务或涉及商业授权时，需要按高德规则缴费或购买相应服务。因此，请你自己申请 API，管理自己的调用量和费用。本项目不提供让所有用户共用的个人 Key，也不会承诺无限免费。</p>
 <p>个人 API 不会上传到本项目服务器、GitHub 仓库、投稿记录或地点导出文件。地图需要联网认证：Key 以及相应安全信息会由你的浏览器或手机直接发送给高德。这里的“不上传”指不交给本项目保存，不代表高德地图可以离线免认证使用。</p>
@@ -20,13 +20,13 @@
 <td>浏览器查看地图、选点、自动填写地址</td>
 <td>Web 端（JSAPI）</td>
 <td>Key 和配套 securityJsCode</td>
-<td>网页顶部“地图 API”</td>
+<td>网页顶部“设置”（地图 API）</td>
 </tr>
 <tr>
 <td>Android 查看地图与选点</td>
 <td>Android 平台</td>
 <td>Android Key</td>
-<td>应用顶部“地图 API”</td>
+<td>应用顶部“设置”（地图 API）</td>
 </tr>
 <tr>
 <td>Android 自动填写地址（可选）</td>
@@ -52,7 +52,7 @@
 <li>根据当前控制台要求设置域名白名单。使用正式网站时填 <code>food.zxymiku.top</code>。若界面要求仅域名，不加 <code>https://</code>、路径或斜杠；按该字段的提示填写，不使用任意域名通配符。</li>
 <li>如果你部署了自己的 Web 副本，应填写你实际访问的域名。<code>localhost</code>、<code>127.0.0.1</code>、另一个子域名或自定义端口可能不等同于生产域名，开发时应单独申请测试 Key，并依高德要求设置白名单。</li>
 <li>保存后，在 Key 列表或详情找到“Key”以及“安全密钥”（<code>securityJsCode</code>）。两个字段通常都是 32 位十六进制字符串，但它们不是同一个值。安全密钥必须与这个 JSAPI Key 配套。</li>
-<li>返回桂电美食分享网页，点击顶部“地图 API”。没有地图时也可以点击地图区域的“填写自己的高德 API”。</li>
+<li>返回桂电美食分享网页，点击顶部“设置”（地图 API）。没有地图时也可以点击地图区域的“填写自己的高德 API”。</li>
 <li>将 JSAPI Key 粘贴到第一栏，将同一个 Key 的 <code>securityJsCode</code> 粘贴到第二栏。页面使用遮蔽输入框，避免旁人直接看到。</li>
 <li>默认勾选“在此浏览器长期记住”。点击“保存并加载地图”后页面重载，地图会自动加载，之后再次访问、关闭并重启浏览器、退出本项目账号，都不需要重新填写。</li>
 <li>等待地图显示，再点击任一公开地点。地图和标记依赖你的 API；地点文字、坐标和图片引用来自共享公开记录。</li>
@@ -67,7 +67,7 @@
 <p>点击“清除本机 API 并关闭地图”会删除长期和当前标签页两种存储，并重载页面。其他已打开的本站标签页也会响应长期设置变化而重载；公共设备操作结束后请关闭所有相关标签页。清除地图 API 不会删除公开地点，也不会退出登录。</p>
 <h2>5. Android：申请与你的安装包匹配的 Key</h2>
 <ol>
-<li>安装本项目 Android 应用，打开顶部“地图 API”。首次打开无需登录、无需填写 Key，也能进入此页面和离线教程。</li>
+<li>安装本项目 Android 应用，打开顶部“设置”（地图 API）。首次打开无需登录、无需填写 Key，也能进入此页面和离线教程。</li>
 <li>找到“包名”与“当前签名 SHA-1”。使用页面提供的“复制包名”“复制当前 SHA-1”，不要手抄。它们由手机读取当前安装包计算得出。</li>
 <li>高德控制台 → 我的应用 → 添加 Key → 服务平台选择“Android 平台”。</li>
 <li>包名填 <code>com.guet.foodshare</code>。自编译时若更改了包名，必须以安装后设置页显示的包名为准。</li>
