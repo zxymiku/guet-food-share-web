@@ -181,7 +181,7 @@ function drawDecision(){
  const marks=collection(),pool=filtered().filter(p=>!$('#decision-unvisited').checked||marks[p.id]?.visit!=='visited');
  const result=decisionDeck.draw(pool),box=$('#decision-candidates');box.replaceChildren();
  $('#decision-scope').textContent='当前找店范围：'+filterSummary();
- $('#decision-status').textContent=result.total?`${result.total} 家可选 · 本组 ${result.places.length} 家 · 本轮还有 ${result.remaining} 家未展示`:'当前条件下没有候选地点；可调整筛选或取消“避开吃过”。';
+ $('#decision-status').textContent=result.total?`${result.total} 家可选 · 本轮待看 ${result.remaining} 家`:'当前条件下没有候选地点；可调整筛选或取消“避开吃过”。';
  for(const p of result.places){
   const card=node('article',undefined,'decision-card');card.dataset.placeId=p.id;card.append(node('span',[p.category,p.subcategory].filter(Boolean).join(' / '),'tag'),node('h3',p.name),node('p',p.address));
   const facts=[p.pricePerPerson!=null?'参考人均 ¥'+p.pricePerPerson:'人均未知',p.rating?.count?`${Number(p.rating.average).toFixed(1)} 分 · ${p.rating.count} 条评价`:'暂无评价'];
@@ -191,7 +191,7 @@ function drawDecision(){
  }
  $('#decision-next').disabled=result.total<=3;$('#decision-next').textContent=result.total<=3?'已展示全部候选':result.remaining?'换一组':'开始新一轮';
 }
-$('#random-place').onclick=()=>{drawDecision();$('#decision-dialog').showModal();};
+$('#random-place').onclick=()=>{if(!$('#budget-filter').checkValidity()){$('.discovery-tools').open=true;$('#budget-filter').reportValidity();return;}drawDecision();$('#decision-dialog').showModal();};
 $('#decision-next').onclick=drawDecision;$('#decision-unvisited').onchange=drawDecision;
 $('#decision-adjust').onclick=()=>{$('#decision-dialog').close();$('.discovery-tools').open=true;$('.discovery-tools').scrollIntoView({block:'start'});$('#budget-filter').focus({preventScroll:true});};
 $('#show-map').onclick=()=>{const map=$('.map-shell');map.scrollIntoView({block:'start'});map.tabIndex=-1;map.focus({preventScroll:true});};
