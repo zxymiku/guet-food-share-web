@@ -174,6 +174,6 @@ async function routes(req, env) {
 export default {async fetch(req,env) {
   let response;
   try { response=await routes(req,env); } catch(e){console.error(e.message);response=fail(e instanceof InputError||e instanceof GitHubAuthorizationError?e.message:'服务暂时不可用，请稍后重试',e instanceof InputError?400:e instanceof GitHubAuthorizationError?e.status:503);}
-  const headers=new Headers(response.headers);headers.set('X-Content-Type-Options','nosniff');headers.set('Referrer-Policy','strict-origin-when-cross-origin');headers.set('Permissions-Policy','geolocation=(self), camera=()');headers.set('X-Frame-Options','DENY');
+  const headers=new Headers(response.headers);headers.set('X-Content-Type-Options','nosniff');headers.set('Referrer-Policy','strict-origin-when-cross-origin');headers.set('Permissions-Policy','geolocation=(self), camera=()');headers.set('X-Frame-Options',new URL(req.url).pathname==='/amap-guide.html'?'SAMEORIGIN':'DENY');
   return new Response(response.body,{status:response.status,headers});
 }};

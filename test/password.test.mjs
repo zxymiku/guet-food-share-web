@@ -11,7 +11,7 @@ test('shared password has upload/read-only authority, isolated ownership, rotati
  const proxy=await getPlatformProxy({persist:false});
  try{
   const env={...proxy.env,APP_ORIGIN:'https://food.test',DEV_MODE:'false',DATA_ENCRYPTION_KEY:'password-test-key-'.repeat(3),PASSWORD_CREDENTIAL:verifier(password),GITHUB_REPO:'',GITHUB_TOKEN:'',DISPATCH_GITHUB_TOKEN:'',MEDIA_GITHUB_TOKEN:'',FEEDBACK_GITHUB_TOKEN:''};
-  for(const name of ['0001_init.sql','0002_media.sql','0003_feedback.sql','0004_password_login.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
+  for(const name of ['0001_init.sql','0002_media.sql','0003_feedback.sql','0004_password_login.sql','0007_reviews_deletions.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
   const call=(path,{method='GET',body,cookie='',bearer='',ip='192.0.2.1',override=env}={})=>worker.fetch(new Request('https://food.test'+path,{method,headers:{Cookie:cookie,'CF-Connecting-IP':ip,...bearer?{Authorization:'Bearer '+bearer}:{}},body:body===undefined?undefined:JSON.stringify(body)}),override);
   const login=options=>call('/api/auth/password',{method:'POST',body:{password,client:'web'},...options});
   const cookies=r=>r.headers.getSetCookie().map(h=>h.split(';')[0]).join('; ');
