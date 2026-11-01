@@ -15,6 +15,6 @@ test('map proxy refuses arbitrary upstream paths',async()=>{assert.equal((await 
 
 test('README is embeddable only on same origin',async()=>{
  const e={...env,ASSETS:{fetch:async()=>new Response('<h1>README</h1>')}};
- assert.equal((await worker.fetch(req('/amap-guide.html'),e)).headers.get('X-Frame-Options'),'SAMEORIGIN');
+ for(const path of ['/amap-guide.html','/amap-guide','/amap-guide/'])assert.equal((await worker.fetch(req(path),e)).headers.get('X-Frame-Options'),'SAMEORIGIN');
  assert.equal((await worker.fetch(req('/'),e)).headers.get('X-Frame-Options'),'DENY');
 });
