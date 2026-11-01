@@ -1,3 +1,4 @@
+import {applySchema} from './schema.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -12,7 +13,7 @@ test('feedback targets each platform, publishes only attached screenshots, and s
  const proxy=await getPlatformProxy({persist:false}),network=globalThis.fetch;
  try{
   const env={...proxy.env,APP_ORIGIN:'https://feedback.test',DEV_MODE:'false',DATA_ENCRYPTION_KEY:'feedback-test-secret-'.repeat(3),GITHUB_CLIENT_ID:'test-app',GITHUB_ANDROID_REPO_ID:'11',GITHUB_WEB_REPO_ID:'12',MEDIA_GITHUB_TOKEN:'media-token',GITHUB_TOKEN:'media-token',FEEDBACK_GITHUB_TOKEN:'issue-token',GITHUB_REPO:'owner/android',FEEDBACK_WEB_REPO:'owner/web',MEDIA_REPO:'owner/media'};
-  for(const migration of ['0001_init.sql','0002_media.sql','0003_feedback.sql','0004_password_login.sql','0005_github_user_grants.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+migration,import.meta.url),'utf8')).replace(/\n/g,' '));
+  await applySchema(env.DB);
   const owner='private-user-12345',other='another-user',photo=crypto.randomUUID();
   const png=Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ1kAAAAASUVORK5CYII=','base64'));
   const encrypted=await encryptedStream(new Response(png).body,await encryptionKey(env,'media:'+photo),photo,png.length,'image/png');

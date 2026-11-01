@@ -1,3 +1,4 @@
+import {applySchema} from './schema.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {getPlatformProxy} from 'wrangler';
@@ -34,9 +35,7 @@ test('501 shared records: tied timestamps, key-independent reads, lossless safe 
   const proxy=await getPlatformProxy({persist:false});
   try{
     const env={...proxy.env,APP_ORIGIN:'https://food.test',DATA_ENCRYPTION_KEY:'test-only-'.repeat(5)};
-    await env.DB.exec((await readFile(new URL('../migrations/0001_init.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
-    await env.DB.exec((await readFile(new URL('../migrations/0006_places_pagination.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
-    for(const name of ['0007_reviews_deletions.sql','0008_discovery_trust.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
+    await applySchema(env.DB);
     const payload={name:'测试门店',category:'面馆',address:'测试地址',description:'推荐理由',directions:'步行路线',location:{lng:110.299121,lat:25.274215,crs:'GCJ-02'},photos:['/api/photos/11111111-1111-1111-1111-111111111111'],videos:['/api/media/22222222-2222-2222-2222-222222222222'],consent:true};
     const dirty={...payload,key:keyA.key,securityJsCode:keyA.securityJsCode,token:'private',location:{...payload.location,key:'private'}};
     assert.equal(normalize(dirty).key,undefined);assert.equal(normalize(dirty).location.key,undefined);

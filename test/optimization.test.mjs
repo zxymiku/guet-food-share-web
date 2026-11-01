@@ -1,3 +1,4 @@
+import {applySchema} from './schema.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
@@ -24,7 +25,7 @@ test('review chronology, owner withdrawal quota, moderation and 100+ submissions
  const proxy=await getPlatformProxy({persist:false});
  try{
  const env={...proxy.env,APP_ORIGIN:'https://food.test',DATA_ENCRYPTION_KEY:'test-only-key-'.repeat(4),REVIEWER_GITHUB_IDS:'reviewer'};
- for(const f of (await readdir(new URL('../migrations/',import.meta.url))).sort())await env.DB.exec((await readFile(new URL('../migrations/'+f,import.meta.url),'utf8')).replace(/\n/g,' '));
+ await applySchema(env.DB);
  const tokens={};for(const user of ['owner','other','reviewer'])tokens[user]=await seal({user,exp:Date.now()+60000},env,'session');
  const call=(path,user='owner',method='GET',body)=>worker.fetch(new Request('https://food.test'+path,{method,headers:{Authorization:'Bearer '+tokens[user],'CF-Connecting-IP':'192.0.2.9'},body:body===undefined?undefined:JSON.stringify(body)}),env);
  const id=crypto.randomUUID(),payload=normalize(food());await env.DB.prepare('INSERT INTO places(id,payload) VALUES (?,?)').bind(id,JSON.stringify(payload)).run();

@@ -1,3 +1,4 @@
+import {applySchema} from './schema.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
@@ -17,7 +18,7 @@ test('D1 atomically rejects repeated IP OR device, permits other places; deletio
  const proxy=await getPlatformProxy({persist:false});
  try{
  const env={...proxy.env,APP_ORIGIN:'https://food.test',DATA_ENCRYPTION_KEY:'test-secret-'.repeat(4),PUBLISH_SECRET:'test-publish'};
- for(const f of (await readdir(new URL('../migrations/',import.meta.url))).sort())await env.DB.exec((await readFile(new URL('../migrations/'+f,import.meta.url),'utf8')).replace(/\n/g,' '));
+ await applySchema(env.DB);
  const id=crypto.randomUUID(),other=crypto.randomUUID();
  const payload={name:'测试',address:'测试地址',category:'餐厅',location:{lng:110,lat:25,crs:'GCJ-02'},consent:true};
  await env.DB.prepare('INSERT INTO submissions(id,user_id,payload) VALUES (?,?,?)').bind(id,'owner',await seal(payload,env)).run();
