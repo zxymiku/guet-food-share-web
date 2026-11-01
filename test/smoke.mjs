@@ -21,7 +21,7 @@ try {
  const env={...proxy.env,DEV_MODE:'true',APP_ORIGIN:'http://localhost:8787',DATA_ENCRYPTION_KEY:'local-test-secret-'.repeat(3),PIPELINE_SECRET:'pipeline-test',MEDIA_GITHUB_TOKEN:'mock-media-token',GITHUB_TOKEN:'mock-media-token',DISPATCH_GITHUB_TOKEN:'',GITHUB_WEB_REPO_ID:'12',GITHUB_ANDROID_REPO_ID:'11',GITHUB_REPO:'',MEDIA_REPO:'test/guet-food-share-media'};
  await env.DB.exec((await readFile(new URL('../migrations/0001_init.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
  await env.DB.exec((await readFile(new URL('../migrations/0002_media.sql',import.meta.url),'utf8')).replace(/\n/g,' '));
- for(const name of ['0003_feedback.sql','0004_password_login.sql','0005_github_user_grants.sql','0006_places_pagination.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
+ for(const name of ['0003_feedback.sql','0004_password_login.sql','0005_github_user_grants.sql','0006_places_pagination.sql','0007_reviews_deletions.sql','0008_discovery_trust.sql'])await env.DB.exec((await readFile(new URL('../migrations/'+name,import.meta.url),'utf8')).replace(/\n/g,' '));
  let session='';
  const call=async(path,method='GET',data,headers={})=>worker.fetch(new Request('http://localhost:8787'+path,{method,headers:{...(session?{Cookie:session}:{}),...headers},body:data===undefined?undefined:typeof data==='string'?data:JSON.stringify(data)}),env);
  assert.equal((await call('/api/submissions','POST',{})).status,401);

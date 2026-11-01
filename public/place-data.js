@@ -19,6 +19,9 @@ export function placeArchive(places, origin, now=new Date()) {
     source:origin,mediaBaseUrl:origin,crs:'GCJ-02',
     places:places.map(p=>({id:p.id,schemaVersion:p.schemaVersion,name:p.name,category:p.category,
       address:p.address,description:p.description,directions:p.directions,
+      subcategory:p.subcategory||'',pros:p.pros||'',cons:p.cons||'',menuPrice:p.menuPrice||'',
+      pricePerPerson:p.pricePerPerson??null,businessHours:p.businessHours||'',tags:[...(p.tags||[])],
+      rating:{count:Number(p.rating?.count||0),average:p.rating?.average??null},
       location:{lng:p.location.lng,lat:p.location.lat,crs:'GCJ-02'},
       photos:[...(p.photos||[])],videos:[...(p.videos||[])],consent:p.consent===true,
       createdAt:p.createdAt??null,publishedAt:p.publishedAt??null}))};

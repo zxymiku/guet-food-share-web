@@ -1,8 +1,11 @@
-name: 桂电美食分享 · Web 按需检查
+name: 桂电美食分享 · Web CI
 on:
   push:
     branches: [main]
   workflow_dispatch:
+concurrency:
+  group: web-check-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -19,7 +22,7 @@ jobs:
       - run: npm run check
       - name: Focused interface review (CI only)
         run: |
-          npm install --no-save --package-lock=false playwright
+          npm install --no-save --package-lock=false playwright@1.56.1
           npx playwright install --with-deps chromium
           node test/ui-ci.mjs
       - uses: actions/upload-artifact@v4

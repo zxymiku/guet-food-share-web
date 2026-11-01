@@ -1,0 +1,11 @@
+// Pure discovery and private collection helpers; no API credentials or location persistence.
+export function distanceKm(a,b){const r=x=>x*Math.PI/180,dlat=r(b.lat-a.lat),dlng=r(b.lng-a.lng);return 6371*2*Math.asin(Math.sqrt(Math.min(1,Math.sin(dlat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dlng/2)**2)));}
+export function readCollection(storage){try{const raw=JSON.parse(storage.getItem('guet.collection.v1')||'{}');return Object.fromEntries(Object.entries(raw).filter(([id,v])=>/^[0-9a-f-]{36}$/.test(id)&&v&&typeof v==='object').slice(0,2000).map(([id,v])=>[id,{favorite:v.favorite===true,visit:['want','visited'].includes(v.visit)?v.visit:''}]));}catch{return {};}}
+export function writeMark(storage,id,patch){const data=readCollection(storage);data[id]={...data[id],...patch};if(Object.keys(data).length>2000)throw new Error('本机收藏上限为 2000 个');storage.setItem('guet.collection.v1',JSON.stringify(data));return data;}
+export function discover(places,options={},collection={}){
+ const {q='',category='全部',subcategory='',saved='',minRating=0,budget='',sort='latest',origin=null}=options,needle=q.trim().toLowerCase();
+ const result=places.filter(p=>(category==='全部'||p.category===category)&&(!subcategory||p.subcategory===subcategory)&&(!saved||(saved==='favorite'?collection[p.id]?.favorite:collection[p.id]?.visit===saved))&&(!minRating||(p.rating?.count>0&&p.rating.average>=minRating))&&(budget===''||(p.pricePerPerson!=null&&p.pricePerPerson<=Number(budget)))&&[p.name,p.address,p.description,p.subcategory,p.menuPrice,...(p.tags||[])].join(' ').toLowerCase().includes(needle));
+ const reputation=p=>((p.rating?.average||0)*(p.rating?.count||0)+3.5*5)/((p.rating?.count||0)+5);
+ const compare=sort==='name'?(a,b)=>a.name.localeCompare(b.name,'zh-CN'):sort==='rating'?(a,b)=>reputation(b)-reputation(a):sort==='distance'&&origin?(a,b)=>distanceKm(origin,a.location)-distanceKm(origin,b.location):sort==='price'?(a,b)=>(a.pricePerPerson??Infinity)-(b.pricePerPerson??Infinity):(a,b)=>(b.publishedAt||'').localeCompare(a.publishedAt||'');
+ return result.sort((a,b)=>compare(a,b)||a.id.localeCompare(b.id));
+}

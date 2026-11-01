@@ -15,11 +15,17 @@ export function normalize(input, config = null) {
   if (!(config ? config.categories.map(c=>c.name) : categories).includes(input.category)) throw new InputError('请选择有效分类');
   const subcategory=clean(input.subcategory,'子分类',30);
   if(config && subcategory && !config.categories.find(c=>c.name===input.category)?.children.includes(subcategory))throw new InputError('请选择有效子分类');
+  if(input.pricePerPerson!=null&&!['string','number'].includes(typeof input.pricePerPerson))throw new InputError('人均价格格式无效');
+  const price=input.pricePerPerson==null||input.pricePerPerson===''?null:Number(input.pricePerPerson);
+  if(price!==null&&(!Number.isFinite(price)||price<0||price>10000))throw new InputError('人均价格应为 0～10000 元，未知请留空');
+  const tags=input.tags??[];
+  if(!Array.isArray(tags)||tags.length>8||tags.some(t=>typeof t!=='string'||!t.trim()||t.length>20))throw new InputError('标签最多 8 个，每个 20 字');
   const photos = input.photos ?? [];
   if (!Array.isArray(photos) || photos.length > 6 || photos.some(p => typeof p !== 'string' || !/^\/api\/photos\/[0-9a-f-]{36}$/.test(p))) throw new InputError('最多上传 6 张本站照片');
   const videos=input.videos??[];
   if(!Array.isArray(videos)||videos.length>2||videos.some(p=>typeof p!=='string'||!/^\/api\/media\/[0-9a-f-]{36}$/.test(p)))throw new InputError('最多上传 2 个本站视频');
   return {schemaVersion: 2, name: clean(input.name, '店名', 60, true), category: input.category, subcategory,
+    pricePerPerson:price,businessHours:clean(input.businessHours,'营业时间',200),tags:[...new Set(tags.map(t=>clean(t,'标签',20)))],
     pros:clean(input.pros,'优点',1000), cons:clean(input.cons,'缺点',1000), menuPrice:clean(input.menuPrice,'菜单价格',1000),
     address: clean(input.address, '地址', 200, true), description: clean(input.description, '推荐理由', 1000),
     directions: clean(input.directions, '前往方法', 1000),

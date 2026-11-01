@@ -1,7 +1,9 @@
+import {submitReport,moderate} from './reports.js';
+import {decodeCursor,encodeCursor} from './pagination.js';
 import {categoryConfig} from './categories.js';
-import {reviews} from './reviews.js';
+import {reviews,removeReview} from './reviews.js';
 import {normalize, InputError} from './validation.js';
-import {listPlaces} from './places.js';
+import {listPlaces,getPlace} from './places.js';
 import {seal,unseal} from './crypto.js';
 import {uploadMedia,serveMedia} from './github-media.js';
 import {appUpdate} from './app-update.js';
@@ -39,11 +41,21 @@ async function routes(req, env) {
   if (allowedOrigins.length && !dev(req, env) && !allowedOrigins.includes(url.origin)) return fail('访问域名未配置',403);
   if (!['GET','HEAD'].includes(method) && req.headers.get('Origin') && req.headers.get('Origin') !== url.origin) return fail('来源不受信任',403);
   const auth=await identity(req,env),user=auth?.user||null;
-  if(auth?.kind==='credential'&&path.startsWith('/api/')&&!credentialAllowed(method,path))return fail('密码凭证允许查看、上传美食和提交反馈，不允许删除、审核或管理',403);
+  if(auth?.kind==='credential'&&path.startsWith('/api/')&&!credentialAllowed(method,path))return fail('当前凭证不允许此操作；只能管理自己的投稿与评价，不能审核或管理他人内容',403);
   if(path==='/api/auth/password'&&method==='POST')return passwordLogin(req,env,await readJson(req));
   if(path==='/api/categories' && method==='GET')return json(await categoryConfig(req,env));
   const reviewMatch=/^\/api\/places\/([0-9a-f-]{36})\/reviews$/.exec(path);
   if(reviewMatch && ['GET','POST'].includes(method))return reviews(req,env,reviewMatch[1],user,method==='POST'?await readJson(req):null);
+  const ownReview=/^\/api\/reviews\/([0-9a-f-]{36})$/.exec(path);
+  if(ownReview&&method==='DELETE')return removeReview(env,ownReview[1],user);
+  if(path==='/api/reports'&&method==='POST')return submitReport(env,user,await readJson(req));
+  if(path==='/api/moderation'){
+    if(!reviewer(user,env))return fail('仅审核员可访问',403);
+    if(method==='GET')return json({reports:(await env.DB.prepare(`SELECT r.id,r.target_type,r.target_id,r.reason,r.detail,r.status,r.created_at,CASE WHEN r.target_type='review' THEN (SELECT comment FROM reviews WHERE id=r.target_id) ELSE (SELECT json_extract(payload,'$.name') || ' · ' || json_extract(payload,'$.address') FROM places WHERE id=r.target_id) END AS target_preview FROM reports r ORDER BY (r.status='pending') DESC,r.created_at DESC,r.id DESC LIMIT 100`).all()).results});
+    if(method==='POST')return moderate(env,await readJson(req),user);
+  }
+  const onePlace=/^\/api\/places\/([0-9a-f-]{36})$/.exec(path);
+  if(onePlace&&method==='GET'){const place=await getPlace(env.DB,onePlace[1]);return place?json({place}):fail('地点不存在或已撤回',404);}
   const deleteMatch=/^\/api\/submissions\/([0-9a-f-]{36})$/.exec(path);
   if(deleteMatch && method==='DELETE'){
     if(!user)return fail('请先登录',401);
@@ -141,7 +153,7 @@ async function routes(req, env) {
     const id=path.split('/').at(-1);if(!/^[0-9a-f-]{36}$/.test(id))return fail('Not found',404);
     const row=await env.DB.prepare('SELECT * FROM media WHERE id=?').bind(id).first();if(!row)return fail('Not found',404);
 
-    const visible=await env.DB.prepare("SELECT 1 FROM places,json_each(places.payload,?) WHERE json_each.value=? LIMIT 1").bind(row.kind==='video'?'$.videos':'$.photos',path).first();
+    const visible=await env.DB.prepare("SELECT 1 FROM places,json_each(places.payload,?) WHERE json_each.value=? AND NOT EXISTS(SELECT 1 FROM hidden_places WHERE place_id=places.id) LIMIT 1").bind(row.kind==='video'?'$.videos':'$.photos',path).first();
     if(!visible&&row.user_id!==user&&!reviewer(user,env))return fail('Not found',404);
     return serveMedia(req,env,row);
   }
@@ -151,7 +163,12 @@ async function routes(req, env) {
   }
   if(path === '/api/submissions') {
      if(!user) return fail('请先登录',401);
-    if(method==='GET') {const rows=await env.DB.prepare('SELECT id,status,created_at,payload FROM submissions WHERE user_id=? ORDER BY created_at DESC LIMIT 100').bind(user).all();return json({submissions:await Promise.all(rows.results.map(async r=>({id:r.id,status:r.status,createdAt:r.created_at,name:(await unseal(r.payload,env)).name})))});}
+    if(method==='GET') {
+      const cursor=decodeCursor(url.searchParams.get('cursor'));
+      const rows=await env.DB.prepare('SELECT id,status,created_at,payload FROM submissions WHERE user_id=?'+(cursor?' AND (created_at<? OR (created_at=? AND id<?))':'')+' ORDER BY created_at DESC,id DESC LIMIT 101').bind(user,...(cursor?[cursor[0],cursor[0],cursor[1]]:[])).all();
+      const page=rows.results.slice(0,100);
+      return json({submissions:await Promise.all(page.map(async r=>({id:r.id,status:r.status,createdAt:r.created_at,name:(await unseal(r.payload,env)).name}))),nextCursor:rows.results.length>100?encodeCursor(page.at(-1)):null});
+    }
     if(method==='POST') {
       const data=normalize(await readJson(req),await categoryConfig(req,env));
       const count=await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE user_id=? AND created_at>strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 day')").bind(user).first();if(count.n>=10) return fail('今日投稿次数已达上限',429);
