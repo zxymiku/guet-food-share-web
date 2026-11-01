@@ -12,9 +12,9 @@
 2. 选择 **zxymiku/guet-food-share-web**，生产分支 **main**。
 3. 根目录 `/`，构建命令留空（静态前端不需要额外构建），部署命令 `npm run db:remote && npm run deploy`。
 4. Node.js 使用 22 或 24。Worker 名称必须与 `wrangler.jsonc` 的 `guet-food-share` 一致。
-5. 完成连接后，向本仓库 main 推送代码，即会由 Workers Builds 自动部署。修改文件但未提交推送不会触发部署。
+5. 开启 main 自动构建并确认 GitHub App 获得本仓库权限，手动触发首次部署，再推送验证。仓库已绑定本身不能证明自动构建正常；当前缺少 Builds API 管理权限，无法代为核验控制台配置。
 
-不要同时启用两种部署方式。`.github/workflows/deploy.yml` 是可选备用方案，只有设置仓库变量 `DEPLOY_WITH_ACTIONS=true` 后才运行；它需要另外配置 Cloudflare API Token。当前按用户选择使用控制台绑定方式。
+选择一个自动部署入口。`.github/workflows/deploy.yml` 已在 push main 后直接触发，不再依赖旧 DEPLOY_WITH_ACTIONS 开关；当前缺少 Secret CLOUDFLARE_API_TOKEN，任务在凭据检查阶段失败，Variable CLOUDFLARE_ACCOUNT_ID 已设置。补齐目标账户的 Workers Scripts Edit、D1 Edit（自定义域名按需 Zone Read）Token 后手动重跑；使用 Actions 时关闭 Workers Builds 自动部署。不要将本机 OAuth 或个人高德 Key 放入这些配置。当前手动发布成功不代表自动部署已恢复。
 
 ## 运行
 
@@ -50,15 +50,9 @@ npm run dev
 - 支持单段 HTTP Range 视频播放；当前从附件起点流式解密到目标区间，远距离 seek 会有额外流量和延迟。
 - 按日创建 Release、900 个附件后分桶。GitHub 依然有 API 配额、可用性和平台使用规则；不视为无限媒体 CDN。
 
-## 按需验证
+## 远程验证
 
-不再在每次 push 自动执行全套测试。需要时手动运行：
-
-```powershell
-npm test
-npm run test:integration
-npm run check
-```
+按当前任务约束，不在本地运行编译、构建测试、npm test、完整冒烟或浏览器交互检查。main 推送或手动触发 Web CI，在 GitHub 执行单元/隔离 D1 回归、Worker dry-run 打包及桌面/竖屏重点交互，上传截图；Playwright 和 runner 配套固定版本。本地仅语法、配置、文本与差异检查。已授权的 Workers 发布打包属于发布例外，不代替远程测试。
 
 完整配置与 Android 发布说明位于主项目 docs/DEPLOYMENT.md。
 
@@ -66,7 +60,7 @@ npm run check
 
 页面“反馈”可手动跳转 Web 仓库 Issues，也可自动填写文字和最多 3 张截图。Android 发往主项目仓库。
 
-共享密码登录由管理员的 FEEDBACK_GITHUB_TOKEN 代发；GitHub App 登录由该用户自己的、对应平台的 user token 发布。不会在用户授权失败时改用管理员 Token。两种身份都支持自动反馈，且均不能通过客户端删除记录。
+共享密码登录由管理员的 FEEDBACK_GITHUB_TOKEN 代发；GitHub App 登录由该用户自己的、对应平台的 user token 发布。不会在用户授权失败时改用管理员 Token。两种身份都支持自动反馈，且均不能通过客户端删除反馈 Issue；自己的地点投稿和新评价可通过所有权接口撤回。
 
 截图最大 8 MB/张，上传前去 EXIF，加密后保存到媒体仓库；明确确认的反馈截图才生成独立随机公开链接供 GitHub 图片代理读取。普通媒体仍遵循原投稿权限。正文只附用户填写的内容、平台和应用版本。
 

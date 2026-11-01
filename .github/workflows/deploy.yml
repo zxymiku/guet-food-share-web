@@ -27,6 +27,7 @@ jobs:
             exit 1
           fi
       - run: npm ci
+      - run: npm run guide:build
       - run: npm test && npm run check
       - run: npm run db:remote && npm run deploy
         env:
