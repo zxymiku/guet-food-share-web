@@ -22,7 +22,9 @@ export async function identity(req,env){
  }catch{return null;}
 }
 export function credentialAllowed(method,path){
- if(method==='GET')return ['/api/config','/api/me','/api/places','/api/submissions','/api/app-update'].includes(path)||/^\/api\/(?:photos|media)\/[0-9a-f-]{36}$/.test(path)||/^\/api\/app-download\/\d+$/.test(path)||/^\/api\/feedback\/[0-9a-f-]{36}\/screenshots\/[0-9a-f-]{36}$/.test(path);
+ if(method==='DELETE')return /^\/api\/submissions\/[0-9a-f-]{36}$/.test(path);
+ if(/^\/api\/places\/[0-9a-f-]{36}\/reviews$/.test(path)&&['GET','POST'].includes(method))return true;
+ if(method==='GET')return ['/api/categories','/api/config','/api/me','/api/places','/api/submissions','/api/app-update'].includes(path)||/^\/api\/(?:photos|media)\/[0-9a-f-]{36}$/.test(path)||/^\/api\/app-download\/\d+$/.test(path)||/^\/api\/feedback\/[0-9a-f-]{36}\/screenshots\/[0-9a-f-]{36}$/.test(path);
  if(method==='POST')return ['/api/auth/password','/api/mobile/token','/api/logout','/api/location','/api/photos','/api/media','/api/submissions','/api/feedback','/api/feedback/screenshots'].includes(path)||/^\/api\/submissions\/[0-9a-f-]{36}\/retry$/.test(path);
  return false;
 }

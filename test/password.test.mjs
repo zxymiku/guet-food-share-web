@@ -24,7 +24,7 @@ test('shared password has upload/read-only authority, isolated ownership, rotati
   const id=crypto.randomUUID();
   for(const [path,method] of [[`/api/submissions/${id}`,'DELETE'],[`/api/media/${id}`,'DELETE'],[`/api/submissions/${id}`,'PUT'],[`/api/review/${id}`,'GET'],[`/api/internal/publish/${id}`,'POST'],['/api/feedback','DELETE'],['/api/admin','GET']])assert.equal((await call(path,{cookie:browserCookie,method,body:method==='GET'?undefined:{}})).status,403,path);
   await env.DB.prepare('INSERT INTO media(id,user_id,kind,descriptor) VALUES (?,?,?,?)').bind(id,'another-person','image','{}').run();assert.equal((await call('/api/photos/'+id,{cookie:browserCookie})).status,404);
-  const food={name:'本地测试面馆',address:'仅测试，不是真实商家',category:'面馆',location:{lng:110.299121,lat:25.274215,crs:'GCJ-02'},photos:[],videos:[],consent:true};
+  const food={name:'本地测试面馆',address:'仅测试，不是真实商家',category:'餐厅',location:{lng:110.299121,lat:25.274215,crs:'GCJ-02'},photos:[],videos:[],consent:true};
   const submit=await call('/api/submissions',{cookie:browserCookie,method:'POST',body:food});assert.equal(submit.status,201);
   const submissionId=(await submit.json()).id;env.INTAKE_SECRET='intake-test';env.PUBLISH_SECRET='publish-test';env.PIPELINE_SECRET='old-combined-secret';
   assert.equal((await call('/api/internal/submissions/'+submissionId,{bearer:env.INTAKE_SECRET})).status,200);

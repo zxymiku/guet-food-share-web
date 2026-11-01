@@ -1,4 +1,4 @@
-name: 桂电美食分享 · Workers 部署（可选 Actions 方式）
+name: 桂电美食分享 · Workers 部署
 on:
   push:
     branches: [main]
@@ -10,8 +10,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    # 默认使用 Workers Builds 绑定；选择 Actions 方式时才启用，避免重复部署。
-    if: vars.DEPLOY_WITH_ACTIONS == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +17,17 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Check deployment credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo '::error::Configure CLOUDFLARE_API_TOKEN secret (Workers Scripts Edit and D1 Edit) and CLOUDFLARE_ACCOUNT_ID variable. Previous pushes were silently skipped.'
+            exit 1
+          fi
       - run: npm ci
+      - run: npm run check
       - run: npm run db:remote && npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

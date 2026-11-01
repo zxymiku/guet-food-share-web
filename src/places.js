@@ -3,7 +3,7 @@ import {normalize, InputError} from './validation.js';
 // Public records are deliberately independent of the map provider credentials.
 // Whitelisting also protects exports if a legacy record contains extra fields.
 export function publicPlace(row) {
-  return {...normalize(JSON.parse(row.payload)), id:row.id,
+  return {...normalize(JSON.parse(row.payload), {categories:[{name:JSON.parse(row.payload).category,children:[JSON.parse(row.payload).subcategory||'']}]}), id:row.id,
     createdAt:row.created_at || null, publishedAt:row.published_at};
 }
 

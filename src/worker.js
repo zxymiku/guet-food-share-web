@@ -1,3 +1,5 @@
+import {categoryConfig} from './categories.js';
+import {reviews} from './reviews.js';
 import {normalize, InputError} from './validation.js';
 import {listPlaces} from './places.js';
 import {seal,unseal} from './crypto.js';
@@ -39,6 +41,17 @@ async function routes(req, env) {
   const auth=await identity(req,env),user=auth?.user||null;
   if(auth?.kind==='credential'&&path.startsWith('/api/')&&!credentialAllowed(method,path))return fail('密码凭证允许查看、上传美食和提交反馈，不允许删除、审核或管理',403);
   if(path==='/api/auth/password'&&method==='POST')return passwordLogin(req,env,await readJson(req));
+  if(path==='/api/categories' && method==='GET')return json(await categoryConfig(req,env));
+  const reviewMatch=/^\/api\/places\/([0-9a-f-]{36})\/reviews$/.exec(path);
+  if(reviewMatch && ['GET','POST'].includes(method))return reviews(req,env,reviewMatch[1],user,method==='POST'?await readJson(req):null);
+  const deleteMatch=/^\/api\/submissions\/([0-9a-f-]{36})$/.exec(path);
+  if(deleteMatch && method==='DELETE'){
+    if(!user)return fail('请先登录',401);
+    const id=deleteMatch[1];
+    if(!await env.DB.prepare('SELECT id FROM submissions WHERE id=? AND user_id=?').bind(id,user).first())return fail('只能删除自己的投稿',403);
+    await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO deleted_submissions(id) VALUES (?)').bind(id),env.DB.prepare('DELETE FROM reviews WHERE place_id=?').bind(id),env.DB.prepare('DELETE FROM places WHERE id=?').bind(id),env.DB.prepare('DELETE FROM submissions WHERE id=? AND user_id=?').bind(id,user)]);
+    return json({ok:true});
+  }
   if (path === '/api/config') return json({mapCredentials:'personal',mapGuide:'/amap-guide.html',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,passwordReady:passwordReady(env),feedback:feedbackConfig(env)});
   if(path==='/api/feedback'&&method==='POST'){
     if(!user)return fail('请先登录后自动反馈；也可选择手动反馈',401);
@@ -114,11 +127,12 @@ async function routes(req, env) {
       return row ? json({id:row.id,...await unseal(row.payload,env)}) : fail('Not found',404);
     }
     if(path.startsWith('/api/internal/publish/') && method==='POST') {
-      const raw=await readJson(req), data=normalize(raw);
+      const raw=await readJson(req), data=normalize(raw, {categories:[{name:raw.category,children:[raw.subcategory||'']}]});
+      if(await env.DB.prepare('SELECT id FROM deleted_submissions WHERE id=?').bind(id).first())return json({ok:true,deleted:true});
       const row=await env.DB.prepare('SELECT payload FROM submissions WHERE id=?').bind(id).first();
       if(!row) return fail('投稿不存在',404);
-      if(JSON.stringify(normalize(await unseal(row.payload,env)))!==JSON.stringify(data)) return fail('审核数据与原投稿不一致，请重新投稿后审核',409);
-      await env.DB.batch([env.DB.prepare('INSERT INTO places(id,payload) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload').bind(id,JSON.stringify(data)),env.DB.prepare("UPDATE submissions SET status='published' WHERE id=?").bind(id)]);
+      if(JSON.stringify(normalize(await unseal(row.payload,env),{categories:[{name:data.category,children:[data.subcategory||'']}]}))!==JSON.stringify(data)) return fail('审核数据与原投稿不一致，请重新投稿后审核',409);
+      await env.DB.batch([env.DB.prepare('INSERT INTO places(id,payload) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM deleted_submissions WHERE id=?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload').bind(id,JSON.stringify(data),id),env.DB.prepare("UPDATE submissions SET status='published' WHERE id=?").bind(id)]);
       return json({ok:true});
     }
     return fail('Not found',404);
@@ -139,7 +153,7 @@ async function routes(req, env) {
      if(!user) return fail('请先登录',401);
     if(method==='GET') {const rows=await env.DB.prepare('SELECT id,status,created_at,payload FROM submissions WHERE user_id=? ORDER BY created_at DESC LIMIT 100').bind(user).all();return json({submissions:await Promise.all(rows.results.map(async r=>({id:r.id,status:r.status,createdAt:r.created_at,name:(await unseal(r.payload,env)).name})))});}
     if(method==='POST') {
-      const data=normalize(await readJson(req));
+      const data=normalize(await readJson(req),await categoryConfig(req,env));
       const count=await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE user_id=? AND created_at>strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 day')").bind(user).first();if(count.n>=10) return fail('今日投稿次数已达上限',429);
       for(const p of [...data.photos,...data.videos]){if(!await env.DB.prepare('SELECT 1 FROM media WHERE id=? AND user_id=? AND kind=?').bind(p.split('/').at(-1),user,p.startsWith('/api/photos/')?'image':'video').first())return fail('只能使用自己上传的图片和视频',403);}
       const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO submissions(id,user_id,payload) VALUES (?,?,?)').bind(id,user,await seal(data,env)).run();

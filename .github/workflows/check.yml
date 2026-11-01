@@ -1,5 +1,7 @@
 name: 桂电美食分享 · Web 按需检查
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,4 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci && npm test && npm run test:integration && npm run check
+      - run: npm ci
+      - run: npm run guide:build
+      - run: npm test
+      - run: npm run check

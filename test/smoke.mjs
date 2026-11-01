@@ -33,7 +33,7 @@ try {
  const clip=new Uint8Array(600000);clip.set([0,0,0,24,102,116,121,112,105,115,111,109]);clip.fill(7,12);
  const videoUpload=await worker.fetch(new Request('http://localhost:8787/api/media',{method:'POST',headers:{Cookie:session,'Content-Type':'video/mp4','X-File-Size':String(clip.length)},body:clip}),env);assert.equal(videoUpload.status,201);const video=(await videoUpload.json()).url;
  const seek=await call(video,'GET',undefined,{Range:'bytes=260000-270000'});assert.equal(seek.status,206);assert.deepEqual(new Uint8Array(await seek.arrayBuffer()),clip.slice(260000,270001));
- const payload={name:'  测试面馆  ',category:'面馆',address:'本地测试，不是真实门店',description:'<script>alert(1)</script>',directions:'步行前往',location:{lng:116.397428,lat:39.909230,crs:'GCJ-02'},photos:[photo],videos:[video],consent:true};
+ const payload={name:'  测试面馆  ',category:'餐厅',address:'本地测试，不是真实门店',description:'<script>alert(1)</script>',directions:'步行前往',location:{lng:116.397428,lat:39.909230,crs:'GCJ-02'},photos:[photo],videos:[video],consent:true};
  assert.equal((await call('/api/submissions','POST',{...payload,location:null})).status,400);
  assert.equal((await call('/api/submissions','POST',{...payload,photos:['/api/photos/11111111-1111-1111-1111-111111111111']})).status,403);
  const result=await call('/api/submissions','POST',payload);assert.equal(result.status,201);const record=await result.json();assert.equal(record.status,'pending');const stored=await env.DB.prepare('SELECT payload FROM submissions WHERE id=?').bind(record.id).first();assert.ok(stored.payload.startsWith('enc1.'));assert.ok(!stored.payload.includes('测试面馆'));
