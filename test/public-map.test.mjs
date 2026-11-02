@@ -40,4 +40,5 @@ test('navigation preserves GCJ-02, raw GPS viewing uses WGS84, and neither carri
  for(const link of [...navigationLinks(place),...positionLinks(110.3,25.2)]){const u=new URL(link.url);assert.equal(u.protocol,'https:');assert.ok(!u.searchParams.has('key'));assert.ok(!u.searchParams.has('jscode'));}
  assert.equal(new URL(positionLinks(110.3,25.2)[0].url).searchParams.get('coordinate'),'wgs84');
  assert.equal(new URL(positionLinks(110.3,25.2)[1].url).searchParams.get('coord_type'),'wgs84');assert.throws(()=>positionLinks(NaN,25));
+ const deceptive=navigationLinks({...place,name:'店,名|latlng:0,0'}).map(x=>new URL(x.url));assert.equal(deceptive[0].searchParams.get('to').split(',').length,3);assert.equal(deceptive[1].searchParams.get('destination').split('|').length,2);
 });

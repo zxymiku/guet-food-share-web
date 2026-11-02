@@ -1,6 +1,6 @@
 function point(p){const c=p.location;if(!c||!Number.isFinite(c.lng)||!Number.isFinite(c.lat)||Math.abs(c.lng)>180||Math.abs(c.lat)>90)throw new Error('地点坐标无效');return c;}
 export function navigationLinks(place){
- const {lng,lat}=point(place),name=place.name||'目的地';
+ const {lng,lat}=point(place),name=String(place.name||'目的地').replace(/[|,\r\n]/g,' ').trim();
  const amap=new URL('https://uri.amap.com/navigation');amap.search=new URLSearchParams({to:`${lng},${lat},${name}`,mode:'walk',coordinate:'gaode',callnative:'1',src:'guet-food-share'});
  // URI product links, not the REST Direction API; never include a personal key.
  const baidu=new URL('https://api.map.baidu.com/direction');baidu.search=new URLSearchParams({origin:'我的位置',destination:`latlng:${lat},${lng}|name:${name}`,mode:'walking',coord_type:'gcj02',output:'html',src:'webapp.guet.foodshare'});
