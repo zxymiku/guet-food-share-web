@@ -26,7 +26,7 @@ npm run db:local
 npm run dev
 ```
 
-高德凭据由每位用户在网页“地图 API”填写自己的 JSAPI Key 和 securityJsCode，默认长期保存在当前浏览器；不上传项目服务器。[详细申请教程](public/amap-guide.md)在 `/amap-guide.html` 渲染，涵盖收费与额度、域名限制和排错。定位经授权后转换为 GCJ-02，自动填写坐标、解析地址，并可建议 80 米内的 POI 店名；必须由用户确认实际门店。拒绝定位仍可手动选点。
+普通查看无需个人Key：“地图与导航”支持开发者公共底图、外部高德/百度和设备位置查看；详情支持两种导航并注明其他软件兼容范围。开发者配置见主项目 [公共地图说明](https://github.com/zxymiku/guet-food-share/blob/main/docs/PUBLIC-MAPS-2026-11.md)。高级个人JSAPI Key/securityJsCode仍仅存本机，个人模式可定位投稿和解析地址；公共模式仅浏览，投稿可手填坐标。完整申请 [README教程](public/amap-guide.md)仍可在应用内阅读。
 
 ## Secret 与变量
 

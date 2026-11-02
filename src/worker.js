@@ -1,4 +1,5 @@
 import {submitReport,moderate} from './reports.js';
+import {publicMapConfig,publicMapProxy} from './public-map.js';
 import {decodeCursor,encodeCursor} from './pagination.js';
 import {categoryConfig} from './categories.js';
 import {reviews,removeReview} from './reviews.js';
@@ -40,6 +41,7 @@ async function routes(req, env) {
   const allowedOrigins=[env.APP_ORIGIN,...(env.ALLOWED_ORIGINS||'').split(',')].filter(Boolean);
   if (allowedOrigins.length && !dev(req, env) && !allowedOrigins.includes(url.origin)) return fail('访问域名未配置',403);
   if (!['GET','HEAD'].includes(method) && req.headers.get('Origin') && req.headers.get('Origin') !== url.origin) return fail('来源不受信任',403);
+  if(path.startsWith('/_AMapService/'))return publicMapProxy(req,env);
   const auth=await identity(req,env),user=auth?.user||null;
   if(auth?.kind==='credential'&&path.startsWith('/api/')&&!credentialAllowed(method,path))return fail('当前凭证不允许此操作；只能管理自己的投稿与评价，不能审核或管理他人内容',403);
   if(path==='/api/auth/password'&&method==='POST')return passwordLogin(req,env,await readJson(req));
@@ -64,7 +66,7 @@ async function routes(req, env) {
     await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO deleted_submissions(id) VALUES (?)').bind(id),env.DB.prepare('DELETE FROM reviews WHERE place_id=?').bind(id),env.DB.prepare('DELETE FROM places WHERE id=?').bind(id),env.DB.prepare('DELETE FROM submissions WHERE id=? AND user_id=?').bind(id,user)]);
     return json({ok:true});
   }
-  if (path === '/api/config') return json({mapCredentials:'personal',mapGuide:'/amap-guide.html',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,passwordReady:passwordReady(env),feedback:feedbackConfig(env)});
+  if (path === '/api/config') return json({mapCredentials:'optional-personal',publicMap:publicMapConfig(env),mapGuide:'/amap-guide.html',dev:dev(req,env),githubReady:repoReady(env),loginReady:!!env.GITHUB_CLIENT_ID,passwordReady:passwordReady(env),feedback:feedbackConfig(env)});
   if(path==='/api/feedback'&&method==='POST'){
     if(!user)return fail('请先登录后自动反馈；也可选择手动反馈',401);
     return submitFeedback(req,env,user,await readJson(req));
@@ -78,7 +80,7 @@ async function routes(req, env) {
   if(feedbackImage&&method==='GET')return feedbackScreenshot(req,env,feedbackImage[1],feedbackImage[2]);
   if((path==='/api/app-update'||path==='/download/android'||/^\/api\/app-download\/\d+$/.test(path))&&method==='GET')return appUpdate(req,env);
   // Personal map keys never transit through this service, including legacy routes.
-  if(path==='/api/location'||path.startsWith('/_AMapService/'))return fail('请在设备上配置自己的高德 API；地图与地址解析直接连接高德，本站不接收个人 Key。',410);
+  if(path==='/api/location')return fail('个人地址解析请在设备直连高德；本站不接收个人 Key。',410);
   if(path === '/auth/github' && method==='GET') {
     if(!env.GITHUB_CLIENT_ID) return fail('请先配置 GitHub OAuth App',503);
     const challenge=url.searchParams.get('challenge');

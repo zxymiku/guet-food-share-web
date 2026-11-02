@@ -1,5 +1,6 @@
 import {discover,readCollection,writeMark,distanceKm} from './discovery.js';
 import {createDecisionDeck} from './decision.js';
+import {navigationLinks,positionLinks} from './navigation.js';
 import {loadCredentials,saveCredentials,clearCredentials} from './map-credentials.js';
 import {readAllPlaces,placeArchive} from './place-data.js';
 const $=s=>document.querySelector(s);
@@ -19,7 +20,7 @@ function render(){
  places.forEach(p=>{const card=node('button',undefined,'place-card');card.dataset.placeId=p.id;const thumb=p.photos.length?node('img'):node('div',icons[p.category]||'⌖','thumb');thumb.className='thumb';if(p.photos.length){thumb.src=p.photos[0];thumb.alt=p.name+'门店照片';thumb.loading='lazy';}const copy=node('div');copy.append(node('h3',p.name),node('span',[p.category,p.subcategory].filter(Boolean).join(' / '),'tag'),node('p',p.address),node('p',`${p.rating?.count?Number(p.rating.average).toFixed(1)+' 分 · '+p.rating.count+' 条':'暂无评分'}${p.pricePerPerson!=null?' · 人均 ¥'+p.pricePerPerson:''}${state.origin?' · '+distanceKm(state.origin,p.location).toFixed(1)+' km':''}`));card.append(thumb,copy);card.onclick=()=>select(p);$('#list').append(card);});
  if(state.map&&state.markerSignature!==places.map(p=>p.id+':'+p.location.lng+':'+p.location.lat).join('|')){state.markerSignature=places.map(p=>p.id+':'+p.location.lng+':'+p.location.lat).join('|');state.map.remove(state.markers);state.markers=places.map((p,i)=>{const content=node('div',undefined,'pin');content.append(node('span',String(i+1)));const marker=new AMap.Marker({position:[p.location.lng,p.location.lat],content,anchor:'bottom-center',title:p.name});marker.on('click',()=>select(p));return marker;});state.map.add(state.markers);}
 }
-function select(p){const box=$('#detail');box.dataset.placeId=p.id;box.replaceChildren();const close=node('button','×','close');close.setAttribute('aria-label','关闭地点详情');close.onclick=()=>{box.hidden=true;const target=[...document.querySelectorAll('.place-card')].find(card=>card.dataset.placeId===p.id)||$('#search');if(matchMedia('(max-width:700px)').matches)target.scrollIntoView({block:'center'});target.focus({preventScroll:true});};box.append(close,node('h2',p.name),node('span',p.category,'tag'),node('p',p.address));if(p.description)box.append(node('p',p.description));if(p.directions)box.append(node('strong','怎么去'),node('p',p.directions));p.photos.forEach(src=>{const img=node('img');img.src=src;img.alt=p.name+'门店照片';box.append(img);});(p.videos||[]).forEach(src=>{const video=node('video');video.src=src;video.controls=true;video.preload='metadata';video.style.width='100%';box.append(video);});const nav=node('a','高德导航 ↗','primary');nav.href=`https://uri.amap.com/navigation?to=${p.location.lng},${p.location.lat},${encodeURIComponent(p.name)}&mode=walk&coordinate=gaode&callnative=1`;nav.target='_blank';nav.rel='noopener';box.append(node('p',`坐标：${p.location.lng}, ${p.location.lat} · GCJ-02`));if(p.publishedAt)box.append(node('p','公开于 '+new Date(p.publishedAt).toLocaleString('zh-CN')));box.append(node('p'),nav); for(const [key,label] of [['subcategory','子分类'],['pros','优点'],['cons','缺点'],['menuPrice','菜单与价格']])if(p[key])box.append(node('h3',label),node('p',p[key])); addPlaceTools(p,box); const reviewsBox=node('section');box.append(reviewsBox);showReviews(p.id,reviewsBox);document.body.dataset.mode='detail';box.hidden=false;box.tabIndex=-1;if(matchMedia('(max-width:700px)').matches)document.querySelector('.map-shell').scrollIntoView({block:'start'});box.focus({preventScroll:true});state.map?.setZoomAndCenter(16,[p.location.lng,p.location.lat]);}
+function select(p){const box=$('#detail');box.dataset.placeId=p.id;box.replaceChildren();const close=node('button','×','close');close.setAttribute('aria-label','关闭地点详情');close.onclick=()=>{box.hidden=true;const target=[...document.querySelectorAll('.place-card')].find(card=>card.dataset.placeId===p.id)||$('#search');if(matchMedia('(max-width:700px)').matches)target.scrollIntoView({block:'center'});target.focus({preventScroll:true});};box.append(close,node('h2',p.name),node('span',p.category,'tag'),node('p',p.address));if(p.description)box.append(node('p',p.description));if(p.directions)box.append(node('strong','怎么去'),node('p',p.directions));p.photos.forEach(src=>{const img=node('img');img.src=src;img.alt=p.name+'门店照片';box.append(img);});(p.videos||[]).forEach(src=>{const video=node('video');video.src=src;video.controls=true;video.preload='metadata';video.style.width='100%';box.append(video);});box.append(node('p',`坐标：${p.location.lng}, ${p.location.lat} · GCJ-02`));if(p.publishedAt)box.append(node('p','公开于 '+new Date(p.publishedAt).toLocaleString('zh-CN')));addNavigationTools(p,box); for(const [key,label] of [['subcategory','子分类'],['pros','优点'],['cons','缺点'],['menuPrice','菜单与价格']])if(p[key])box.append(node('h3',label),node('p',p[key])); addPlaceTools(p,box); const reviewsBox=node('section');box.append(reviewsBox);showReviews(p.id,reviewsBox);document.body.dataset.mode='detail';box.hidden=false;box.tabIndex=-1;if(matchMedia('(max-width:700px)').matches)document.querySelector('.map-shell').scrollIntoView({block:'start'});box.focus({preventScroll:true});state.map?.setZoomAndCenter(16,[p.location.lng,p.location.lat]);}
 async function share(){if(!state.user){toast('请先登录后分享');return;}$('#submit-dialog').showModal();}
 $('#share').onclick=share;$('#empty-share').onclick=share;$('#explore').onclick=()=>{$('#detail').hidden=true;document.querySelector('aside').scrollIntoView({block:'start'});$('#search').focus({preventScroll:true});};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());
@@ -37,7 +38,7 @@ $('#login').onclick=async()=>{try{if(state.user){await post('/api/logout',{});lo
 $('#github-login').onclick=async()=>{try{if(state.config.dev){await post('/api/dev-session',{});location.reload();}else if(state.config.loginReady){location.href='/auth/github';}else $('#password-error').textContent='GitHub 登录尚未配置，可改用共享密码。';}catch(e){$('#password-error').textContent=e.message;}};
 $('#password-form').onsubmit=async event=>{event.preventDefault();const button=$('#password-submit');button.disabled=true;$('#password-error').textContent='';try{await post('/api/auth/password',{password:$('#shared-password').value,client:'web'});$('#shared-password').value='';location.reload();}catch(e){$('#password-error').textContent=e.message;}finally{button.disabled=false;}};
 $('#login-dialog').addEventListener('close',()=>$('#shared-password').value='');
-$('#pick').onclick=()=>{if(!state.map){toast('配置高德 Key 后可在地图选点，也可以输入高德坐标');return;}state.picking=true;$('#submit-dialog').close();toast('请点击地图上的门店位置');};
+$('#pick').onclick=()=>{if(state.mapSource==='public'){toast('公共底图仅供浏览；投稿可手填坐标，或用高级个人 API 选点。');return;}if(!state.map){toast('配置高德 Key 后可在地图选点，也可以输入高德坐标');return;}state.picking=true;$('#submit-dialog').close();toast('请点击地图上的门店位置');};
 async function fillLocation(point){
  const form=$('#submit-form');form.elements.lng.value=point.lng.toFixed(6);form.elements.lat.value=point.lat.toFixed(6);
  if(state.map){if(state.selection)state.map.remove(state.selection);state.selection=new AMap.Marker({position:[point.lng,point.lat],title:'请核对门店位置'});state.map.add(state.selection);}
@@ -46,12 +47,13 @@ async function fillLocation(point){
  catch(e){$('#pick-help').textContent='坐标已填写；'+e.message;}
 }
 function autoLocate(){
+ if(state.mapSource==='public'){toast('公共底图仅浏览；可手填投稿坐标，或切换个人 API 自动填写。');return;}
  if(!state.map){toast('高德地图尚未就绪');return;}
  if(!state.user){toast('请先登录后定位填写投稿');return;}
  if(!navigator.geolocation){toast('当前设备不支持定位');return;}
  navigator.geolocation.getCurrentPosition(pos=>{AMap.convertFrom([pos.coords.longitude,pos.coords.latitude],'gps',async(status,result)=>{if(status==='complete'&&result.locations?.length){const p=result.locations[0];state.map.setZoomAndCenter(17,p);if(!$('#submit-dialog').open)$('#submit-dialog').showModal();await fillLocation({lng:p.lng,lat:p.lat});toast('已根据定位填写，请核对实际门店。');}else toast('位置转换失败，请手动移动地图');});},()=>toast('定位未获授权或不可用，你仍可手动选点'),{enableHighAccuracy:true,timeout:15000});
 }
-$('#locate').onclick=autoLocate;$('#autofill').onclick=autoLocate;
+$('#locate').onclick=()=>{if(!state.map){mapSettings();$('#external-position').focus();}else $('#browse-nearby').click();};$('#autofill').onclick=autoLocate;
 let previewUrls=[];
 $('#videos').onchange=()=>{const files=[...$('#videos').files];if(files.length>2||files.some(f=>f.size>50*1024*1024||!['video/mp4','video/webm'].includes(f.type))){$('#videos').value='';toast('最多 2 个 MP4/WebM 视频，每个不超过 50 MB');}$('#video-preview').textContent=[...$('#videos').files].map(f=>f.name).join('、');};
 $('#photos').onchange=()=>{previewUrls.forEach(URL.revokeObjectURL);previewUrls=[];$('#photo-preview').replaceChildren();const files=[...$('#photos').files];if(files.length>6||files.some(f=>f.size>8*1024*1024||!['image/jpeg','image/png'].includes(f.type))){$('#photos').value='';toast('请选择最多 6 张 JPEG / PNG 照片，每张不超过 8 MB');return;}files.forEach(f=>{const image=node('img');image.src=URL.createObjectURL(f);previewUrls.push(image.src);image.alt='待上传照片预览';$('#photo-preview').append(image);});};
@@ -72,32 +74,44 @@ function reverseGeocode(point){
  });
 }
 let mapLoading=false;
+function mapPreference(){try{return localStorage.getItem('guet.map.mode')||'';}catch{return '';}}
+function updateMapOptions(){
+ const ready=state.config.publicMap?.webReady===true;
+ $('#enable-public-map').hidden=!ready;
+ $('#public-map-note').textContent=ready?'开发者公共底图已就绪，无需个人 Key；启用后连接高德。':'本站尚未配置公共底图；可立即打开外部地图，无需个人 Key。';
+ $('#public-map-settings-note').textContent=$('#public-map-note').textContent;
+ $('#use-public-map').disabled=!ready;
+}
+function changeMapMode(mode){try{localStorage.setItem('guet.map.mode',mode);location.reload();}catch{toast('无法保存地图偏好，仍可使用外部地图。');}}
+function enablePublicMap(){if(!state.config.publicMap?.webReady){toast('开发者尚未配置公共底图，请先使用外部地图。');return;}if(confirm('启用开发者提供的高德公共底图？地图会连接高德；定位需另行授权。公共坐标转换经本站转发，不保存定位坐标。'))changeMapMode('public');}
 async function loadMap(){
  if(state.map||mapLoading)return;
- const credentials=loadCredentials();
- if(!credentials){$('#map-status').textContent='待填写个人 API';return;}
- mapLoading=true;$('#map-status').textContent='正在连接高德…';
+ updateMapOptions();
+ const mode=mapPreference(),personal=loadCredentials(),shared=state.config.publicMap;
+ const credentials=mode==='off'?null:mode!=='public'&&personal?{...personal,source:'personal'}:mode==='public'&&shared?.webReady?{key:shared.webKey,source:'public'}:null;
+ if(!credentials){$('#map-status').textContent=shared?.webReady?'公共底图可直接启用':'可使用外部地图，无需个人 API';return;}
+ mapLoading=true;state.mapSource=credentials.source;const label=credentials.source==='public'?'开发者公共底图':'个人 API';$('#map-status').textContent='正在连接高德…';
  try{
-  // Direct client integration: neither Key nor securityJsCode is sent to our Worker.
-  window._AMapSecurityConfig={securityJsCode:credentials.securityJsCode};
+  // Only the explicitly configured developer key uses the restricted proxy.
+  window._AMapSecurityConfig=credentials.source==='public'?{serviceHost:location.origin+shared.serviceHost}:{securityJsCode:credentials.securityJsCode};
   await new Promise((resolve,reject)=>{
    if(window.AMap){resolve();return;}
    const script=document.createElement('script');
    const cleanup=()=>{clearTimeout(timer);delete window.__mapReady;};
-   const timer=setTimeout(()=>{cleanup();script.remove();reject(new Error('地图连接超时，请检查个人 API 和网络'));},18000);
+   const timer=setTimeout(()=>{cleanup();script.remove();reject(new Error('地图连接超时，可改用外部地图'));},18000);
    window.__mapReady=()=>{cleanup();resolve();};
    script.src=`https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(credentials.key)}&callback=__mapReady`;
-   script.onerror=()=>{cleanup();script.remove();reject(new Error('高德地图加载失败，请检查网络与个人 API'));};
+   script.onerror=()=>{cleanup();script.remove();reject(new Error('高德底图加载失败，可改用外部地图'));};
    document.head.append(script);
   });
   state.map=new AMap.Map('map',{zoom:13,center:state.places.length?[state.places[0].location.lng,state.places[0].location.lat]:[110.299121,25.274215],viewMode:'2D'});
-  $('#map-empty').hidden=true;$('#map-status').textContent='个人 API · 连接中';
+  $('#map-empty').hidden=true;$('#map-status').textContent=label+' · 连接中';
   let loaded=false;const currentMap=state.map;
-  state.map.on('complete',()=>{loaded=true;$('#map-status').textContent='高德地图 · 个人 API';});
-  setTimeout(()=>{if(!loaded&&state.map===currentMap)$('#map-status').textContent='地图未就绪 · 检查个人 API / 网络';},20000);
-  state.map.on('error',()=>{$('#map-status').textContent='地图异常 · 检查个人 API';toast('请检查 JSAPI Key、安全码、域名白名单和额度；可打开“地图 API”修改。');});
-  state.map.on('click',e=>{if(!state.picking)return;state.picking=false;const {lng,lat}=e.lnglat;$('#submit-dialog').showModal();fillLocation({lng,lat});});render();
- }catch(e){$('#map-status').textContent='加载失败 · 检查个人 API';toast(e.message);}finally{mapLoading=false;}
+  state.map.on('complete',()=>{loaded=true;$('#map-status').textContent='高德地图 · '+label;});
+  setTimeout(()=>{if(!loaded&&state.map===currentMap)$('#map-status').textContent='地图未就绪 · 可改用外部地图';},20000);
+  state.map.on('error',()=>{$('#map-status').textContent='地图异常 · 可改用外部地图';toast('可在“地图与导航”打开外部地图；公共底图问题请反馈管理员，个人 API 可检查白名单/额度。');});
+  state.map.on('click',e=>{if(!state.picking||state.mapSource==='public')return;state.picking=false;const {lng,lat}=e.lnglat;$('#submit-dialog').showModal();fillLocation({lng,lat});});render();
+ }catch(e){$('#map-status').textContent='加载失败 · 可用外部地图';toast(e.message);}finally{mapLoading=false;}
 }
 function mapSettings(){
  const saved=loadCredentials();$('#personal-key').value=saved?.key||'';$('#personal-code').value=saved?.securityJsCode||'';
@@ -105,11 +119,11 @@ function mapSettings(){
 }
 $('#map-settings').onclick=mapSettings;$('#empty-settings').onclick=mapSettings;
 $('#map-settings-form').onsubmit=event=>{event.preventDefault();try{
- saveCredentials({key:$('#personal-key').value,securityJsCode:$('#personal-code').value},$('#remember-map').checked);
+ saveCredentials({key:$('#personal-key').value,securityJsCode:$('#personal-code').value},$('#remember-map').checked);localStorage.setItem('guet.map.mode','personal');
  // Reload clears the SDK singleton and all pending callbacks when switching identities.
  location.reload();
 }catch(e){$('#map-settings-error').textContent=e.message||'浏览器未允许本地存储，请调整设置';}};
-$('#clear-map').onclick=()=>{try{clearCredentials();location.reload();}catch{$('#map-settings-error').textContent='无法清除，请在浏览器设置中清除本站数据';}};
+$('#clear-map').onclick=()=>{try{clearCredentials();localStorage.setItem('guet.map.mode','off');location.reload();}catch{$('#map-settings-error').textContent='无法清除，请在浏览器设置中清除本站数据';}};
 window.addEventListener('storage',event=>{if(event.key==='guet.amap.personal.v1'||event.key===null)location.reload();});
 $('#map-settings-dialog').addEventListener('close',()=>{$('#personal-key').value='';$('#personal-code').value='';});
 $('#export-places').onclick=async()=>{
@@ -174,7 +188,7 @@ function filterSummary(){
  return parts.length?parts.join(' · '):'全部公开地点';
 }
 function resetDiscovery(){state.category='全部';for(const id of ['search','browse-subcategory','saved-filter','budget-filter','radius-filter'])$('#'+id).value='';$('#min-rating').value='0';$('#sort-order').value='latest';renderCategories();render();}
-['browse-subcategory','saved-filter','min-rating','budget-filter','radius-filter','sort-order'].forEach(id=>$('#'+id).onchange=()=>{if(id==='budget-filter'&&!$('#budget-filter').checkValidity()){$('#budget-filter').reportValidity();return;}if(id==='sort-order'&&$('#sort-order').value==='distance'&&!state.origin){toast('请先点击“定位查看附近”，定位不会上传');$('#sort-order').value='latest';}render();});
+['browse-subcategory','saved-filter','min-rating','budget-filter','radius-filter','sort-order'].forEach(id=>$('#'+id).onchange=()=>{if(id==='budget-filter'&&!$('#budget-filter').checkValidity()){$('#budget-filter').reportValidity();return;}if(id==='sort-order'&&$('#sort-order').value==='distance'&&!state.origin){toast('请先点击“定位查看附近”，坐标仅用于本次浏览');$('#sort-order').value='latest';}render();});
 $('#reset-filters').onclick=resetDiscovery;
 const decisionDeck=createDecisionDeck();
 let decisionChoices=[];
@@ -198,7 +212,7 @@ $('#decision-pick').onclick=()=>{if(!decisionChoices.length)return;const p=decis
 $('#decision-adjust').onclick=()=>{$('#decision-dialog').close();$('.discovery-tools').open=true;$('.discovery-tools').scrollIntoView({block:'start'});$('#budget-filter').focus({preventScroll:true});};
 $('#show-map').onclick=()=>{const map=$('.map-shell');map.scrollIntoView({block:'start'});map.tabIndex=-1;map.focus({preventScroll:true});};
 $('#refresh-places').onclick=async()=>{const b=$('#refresh-places');b.disabled=true;$('#load-status').textContent='正在同步…';try{const places=await readAllPlaces(api);state.places=places;cachePublicPlaces(places);render();$('#load-status').textContent='已同步 '+places.length+' 个公开地点';}catch(e){$('#load-status').textContent='同步失败，已保留当前列表：'+e.message;}finally{b.disabled=false;}};
-$('#browse-nearby').onclick=()=>{if(!state.map){toast('附近排序需要先配置个人高德 API；其他筛选仍可使用');return;}if(!navigator.geolocation){toast('设备不支持定位');return;}navigator.geolocation.getCurrentPosition(pos=>{AMap.convertFrom([pos.coords.longitude,pos.coords.latitude],'gps',(status,result)=>{if(status!=='complete'||!result.locations?.length){toast('坐标转换失败，请稍后再试');return;}const point=result.locations[0];state.origin={lng:point.lng,lat:point.lat};$('#radius-filter').disabled=false;$('#sort-order').value='distance';render();toast('已按直线距离排序，位置仅在当前页面内存保存');});},()=>toast('定位失败，仍可使用分类和收藏筛选'),{timeout:15000});};
+$('#browse-nearby').onclick=()=>{if(!state.map){toast('可启用开发者公共底图或个人 API；也可用外部地图查看位置');return;}if(!navigator.geolocation){toast('设备不支持定位');return;}navigator.geolocation.getCurrentPosition(pos=>{AMap.convertFrom([pos.coords.longitude,pos.coords.latitude],'gps',(status,result)=>{if(status!=='complete'||!result.locations?.length){toast('坐标转换失败，请稍后再试');return;}const point=result.locations[0];state.origin={lng:point.lng,lat:point.lat};$('#radius-filter').disabled=false;$('#sort-order').value='distance';render();toast('已按直线距离排序，位置不保存；公共坐标转换会经本站转发高德');});},()=>toast('定位失败，仍可使用分类和收藏筛选'),{timeout:15000});};
 async function openSharedPlace(){const id=new URL(location.href).searchParams.get('place');if(!id)return;if(!/^[0-9a-f-]{36}$/.test(id)){toast('地点链接格式无效');return;}try{const p=state.places.find(p=>p.id===id)||(await api('/api/places/'+id)).place;select(p);}catch(e){toast(e.message);}}
 let reportTarget=null;
 function openReport(type,id,name){if(!state.user){toast('请先登录后提交纠错或举报');return;}reportTarget={type,targetId:id};$('#report-target').textContent='目标：'+name;$('#report-error').textContent='';$('#report-detail').value='';$('#report-dialog').showModal();}
@@ -210,3 +224,21 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelect
 function cachePublicPlaces(places){try{localStorage.setItem('guet.public.cache',JSON.stringify({savedAt:new Date().toISOString(),places:placeArchive(places,location.origin).places}));}catch{/* Public cache is optional; a storage quota never blocks live data. */}}
 
 $('#clear-public-cache').onclick=()=>{try{localStorage.removeItem('guet.public.cache');toast('已清除公开地点缓存');}catch(e){toast(e.message);}};
+
+$('#enable-public-map').onclick=enablePublicMap;$('#use-public-map').onclick=enablePublicMap;
+$('#disable-embedded-map').onclick=()=>changeMapMode('off');
+$('#external-position').onclick=()=>{
+ const box=$('#external-position-result');box.replaceChildren();
+ if(!navigator.geolocation){box.textContent='设备不支持定位，请在外部地图中定位。';return;}
+ box.textContent='正在请求定位权限…';
+ navigator.geolocation.getCurrentPosition(pos=>{
+  box.replaceChildren(node('p',`定位结果不发送本站；${Number.isFinite(pos.coords.accuracy)&&pos.coords.accuracy>0?'设备估计精度约 '+Math.round(pos.coords.accuracy)+' 米':'设备未提供精度'}，请核对位置。`));
+  for(const item of positionLinks(pos.coords.longitude,pos.coords.latitude)){const a=node('a',item.name,'feedback-secondary');a.href=item.url;a.target='_blank';a.rel='noopener';box.append(a);}
+ },()=>{box.textContent='定位未获授权或不可用，可直接打开外部地图使用其定位功能。';},{timeout:15000});
+};
+function addNavigationTools(p,box){
+ const tools=node('section',undefined,'navigation-tools');tools.append(node('h3','导航 / 外部地图'));
+ for(const item of navigationLinks(p)){const a=node('a',item.name+' ↗','feedback-secondary');a.href=item.url;a.target='_blank';a.rel='noopener';tools.append(a);}
+ const copy=node('button','复制店名和地址');copy.onclick=async()=>{const value=p.name+' · '+p.address;try{await navigator.clipboard.writeText(value);toast('已复制，可粘贴到其他地图搜索');}catch{const input=node('input');input.value=value;input.readOnly=true;input.setAttribute('aria-label','可复制的店名和地址');tools.append(input);input.select();}};tools.append(copy);
+ const help=node('details');help.append(node('summary','兼容性与其他地图'),node('p','导航无需个人 API。手机可能打开客户端或网页，电脑请核对并手动选择起点。微信/QQ等内置浏览器可能拦截，请用系统浏览器。腾讯、苹果、Google等尚未保证直接导航兼容，可复制店名地址搜索；请核对目的地。'));tools.append(help);box.append(tools);
+}
